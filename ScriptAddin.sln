@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29009.5
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "ScriptAaddin", "ScriptAddin.vbproj", "{FA14BDF7-3A33-41FD-88DA-992FF9148B6E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FA14BDF7-3A33-41FD-88DA-992FF9148B6E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FA14BDF7-3A33-41FD-88DA-992FF9148B6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FA14BDF7-3A33-41FD-88DA-992FF9148B6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FA14BDF7-3A33-41FD-88DA-992FF9148B6E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {92F0D11E-1161-4CB3-88F8-0C823E5CB2F4}
+	EndGlobalSection
+EndGlobal
