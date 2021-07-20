@@ -17,13 +17,13 @@ The input arguments (arg, see below) are written to files, the scripts defined i
 
 script interactions (ScriptDefinitions) are defined using a 3 column named range (1st col: definition type, 2nd: definition value, 3rd: (optional) definition path):
 
-The Rdefinition range name must start with "Script_" (or "R_Addin" as a legacy compatibility with the old R Addin) and can have a postfix as an additional definition name.
+The Scriptdefinition range name must start with "Script_" (or "R_Addin" as a legacy compatibility with the old R Addin) and can have a postfix as an additional definition name.
 If there is no postfix after "Script_", the script is called "MainScript" in the Workbook/Worksheet.
 
 A range name can be at Workbook level or worksheet level.
 In the ScriptDefinition dropdowns the worksheet name (for worksheet level names) or the workbook name (for workbook level names) is prepended to the additional postfixed definition name.
 
-So for the 10 definitions (range names) currently defined in the test workbook testRAddin.xlsx, there should be 10 entries in the Rdefinition dropdown:
+So for the 8 definitions (range names) currently defined in the test workbook testRAddin.xlsx, there should be 8 entries in the Scriptdefinition dropdown:
 
 - testScriptAddin.xlsx, (Workbooklevel name, runs as MainScript)
 - testScriptAddin.xlsxAnotherDef (Workbooklevel name),
@@ -34,7 +34,7 @@ So for the 10 definitions (range names) currently defined in the test workbook t
 - Test_scriptRngScriptCell (Test_scriptRng) and
 - Test_scriptRngScriptRange (Test_scriptRng)
 
-In the 1st column of the Rdefinition range are the definition types, possible types are
+In the 1st column of the Scriptdefinition range are the definition types, possible types are
 - exec: an executable, being able to run the script in line "script". This is only needed for overriding the ExePath<executable> in the AppSettings in the ScriptAddin.xll.config file.
 - path: path to folders with dlls/executables (semicolon separated), in case you need to add them. Only needed when overriding the PathAdd<executable> in the AppSettings in the ScriptAddin.xll.config file.
 - dir: the path where below files (scripts, args, results and diagrams) are stored.
