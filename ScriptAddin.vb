@@ -19,6 +19,8 @@ Public Module ScriptAddin
     Public ScriptExecArgs As String
     ''' <summary>optional additional path settings for ScriptExec</summary>
     Public ScriptExecAddPath As String
+    ''' <summary>If Scriptengine writes to StdError, regard this as an error for further processing (some write to StdError in case of no error)</summary>
+    Public StdErrMeansError As Boolean
     ''' <summary>for DBMapper invocations by execDBModif, this is set to true, avoiding MsgBox</summary>
     Public nonInteractive As Boolean = False
     ''' <summary>collect non interactive error messages here</summary>
@@ -97,7 +99,7 @@ Public Module ScriptAddin
     ''' <summary>Msgbox that avoids further Msgboxes (click Yes) or cancels run altogether (click Cancel)</summary>
     ''' <param name="message"></param>
     ''' <returns>True if further Msgboxes should be avoided, False otherwise</returns>
-    Public Function myMsgBox(message As String, Optional noAvoidChoice As Boolean = False, Optional IsWarning As Boolean = False) As Boolean
+    Public Function UserMsg(message As String, Optional noAvoidChoice As Boolean = False, Optional IsWarning As Boolean = False) As Boolean
         Dim theMethod As Object = (New System.Diagnostics.StackTrace).GetFrame(1).GetMethod
         Dim caller As String = theMethod.ReflectedType.FullName & "." & theMethod.Name
 
@@ -229,7 +231,9 @@ Public Module ScriptAddin
         resetScriptDefinitions()
         Try
             ScriptExecArgs = "" ' reset ScriptExec arguments as they might have been set elsewhere...
-            ScriptExec = Nothing ' same for ScriptExec
+            ScriptExec = Nothing ' same for ScriptExec and other settings
+            ScriptExecAddPath = ""
+            ScriptFileSuffix = ""
             For Each defRow As Range In ScriptDefinitionRange.Rows
                 Dim deftype As String, defval As String, deffilepath As String
                 deftype = LCase(defRow.Cells(1, 1).Value2)
@@ -276,10 +280,11 @@ Public Module ScriptAddin
             Next
             ' get default ScriptExec path from user (or overriden in appSettings tag as redirect to global) settings. This can be overruled by individual script exec settings in ScriptDefinitions
             If ScriptExec Is Nothing Then ScriptExec = fetchSetting("ExePath" + ScriptType, "")
-            If ScriptExecAddPath Is Nothing Then ScriptExecAddPath = fetchSetting("PathAdd" + ScriptType, "")
-            If ScriptFileSuffix Is Nothing Then ScriptFileSuffix = fetchSetting("FSuffix" + ScriptType, "")
-            If ScriptExec = "" Then Return "Error in getScriptDefinitions: ScriptExec not defined"
+            If ScriptExecAddPath = "" Then ScriptExecAddPath = fetchSetting("PathAdd" + ScriptType, "")
+            If ScriptFileSuffix = "" Then ScriptFileSuffix = fetchSetting("FSuffix" + ScriptType, "")
+            If ScriptExec = "" Then Return "Error in getScriptDefinitions: ScriptExec not defined (check AppSettings for available ExePath<> entries)"
             If ScriptDefDic("scripts").Length = 0 And ScriptDefDic("scriptrng").Length = 0 Then Return "Error in getScriptDefinitions: no script(s) or scriptRng(s) defined in " + ScriptDefinitionRange.Name.Name
+            StdErrMeansError = fetchSetting("StdErrX" + ScriptType, "True")
         Catch ex As Exception
             Return "Error in getScriptDefinitions: " + ex.Message
         End Try
@@ -349,7 +354,7 @@ Public Module ScriptAddin
                 Dim errMsg As String
                 errMsg = prepareParam(c, "args", ScriptDataRange, argFilename, argdir, ".txt")
                 If Len(errMsg) > 0 Then
-                    If Not ScriptAddin.myMsgBox(errMsg) Then Return False
+                    If Not ScriptAddin.UserMsg(errMsg) Then Return False
                 End If
 
                 ' absolute paths begin with \\ or X:\ -> dont prefix with currWB path, else currWBpath\argdir
@@ -386,7 +391,7 @@ Public Module ScriptAddin
                 LogInfo("stored args to " + curWbPrefix + argdir + "\" + argFilename)
             Catch ex As Exception
                 If outputFile IsNot Nothing Then outputFile.Close()
-                If Not ScriptAddin.myMsgBox("Error occured when creating inputfile '" + argFilename + "', " + ex.Message + " (maybe defined the wrong cell format for values?)",, True) Then Return False
+                If Not ScriptAddin.UserMsg("Error occured when creating inputfile '" + argFilename + "', " + ex.Message + " (maybe defined the wrong cell format for values?)",, True) Then Return False
             End Try
             If outputFile IsNot Nothing Then outputFile.Close()
         Next
@@ -411,7 +416,7 @@ Public Module ScriptAddin
                 Else
                     ErrMsg = prepareParam(c, "scriptrng", ScriptDataRange, scriptRngFilename, scriptRngdir, ScriptFileSuffix)
                     If Len(ErrMsg) > 0 Then
-                        If Not ScriptAddin.myMsgBox(ErrMsg) Then Return False
+                        If Not ScriptAddin.UserMsg(ErrMsg) Then Return False
                     End If
                 End If
 
@@ -446,7 +451,7 @@ Public Module ScriptAddin
                 LogInfo("stored Script to " + curWbPrefix + scriptRngdir + "\" + scriptRngFilename)
             Catch ex As Exception
                 If outputFile IsNot Nothing Then outputFile.Close()
-                If Not ScriptAddin.myMsgBox("Error occured when creating script file '" + scriptRngFilename + "', " + ex.Message,, True) Then Return False
+                If Not ScriptAddin.UserMsg("Error occured when creating script file '" + scriptRngFilename + "', " + ex.Message,, True) Then Return False
             End Try
             If outputFile IsNot Nothing Then outputFile.Close()
         Next
@@ -471,7 +476,7 @@ Public Module ScriptAddin
                          ErrMsg = prepareParam(c, "scripts", Nothing, script, scriptpath, "")
                          If Len(ErrMsg) > 0 Then
                              ' allow to ignore preparation errors...
-                             If Not ScriptAddin.myMsgBox(ErrMsg) Then Exit For
+                             If Not ScriptAddin.UserMsg(ErrMsg) Then Exit For
                              ErrMsg = ""
                          End If
 
@@ -481,6 +486,7 @@ Public Module ScriptAddin
                          ' blocking wait for finish of script dialog
                          Await Task.Run(Sub()
                                             theScriptOutput = New ScriptOutput()
+                                            If theScriptOutput.errMsg <> "" Then Exit Sub
                                             ' hide script output if not in debug mode
                                             If Not ScriptAddin.debugScript Then theScriptOutput.Opacity = 0
                                             theScriptOutput.ShowInTaskbar = True
@@ -493,7 +499,7 @@ Public Module ScriptAddin
                      If ErrMsg = "" Then
                          ScriptAddin.finishScriptprocess()
                      Else
-                         ScriptAddin.myMsgBox("Errors occurred in script, no returned results/diagrams will be fetched !", True, True)
+                         ScriptAddin.UserMsg("Errors occurred in script, no returned results/diagrams will be fetched !", True, True)
                      End If
                      ' reset current dir
                      Directory.SetCurrentDirectory(previousDir)
@@ -515,13 +521,13 @@ Public Module ScriptAddin
         For c As Integer = 0 To ScriptDefDic("results").Length - 1
             errMsg = prepareParam(c, "results", ScriptDataRange, resFilename, readdir, ".txt")
             If Len(errMsg) > 0 Then
-                If Not ScriptAddin.myMsgBox(errMsg,, True) Then Return False
+                If Not ScriptAddin.UserMsg(errMsg,, True) Then Return False
             End If
 
             ' absolute paths begin with \\ or X:\ -> dont prefix with currWB path, else currWBpath\readdir
             Dim curWbPrefix As String = IIf(Left(readdir, 2) = "\\" Or Mid(readdir, 2, 2) = ":\", "", currWb.Path + "\")
             If Not File.Exists(curWbPrefix + readdir + "\" + resFilename) Then
-                If Not ScriptAddin.myMsgBox("Results file '" + curWbPrefix + readdir + "\" + resFilename + "' not found!",, True) Then Return False
+                If Not ScriptAddin.UserMsg("Results file '" + curWbPrefix + readdir + "\" + resFilename + "' not found!",, True) Then Return False
             End If
             ' remove previous content, might not exist, so catch any exception
             If ScriptDefDic("rresults")(c) Then
@@ -574,10 +580,11 @@ Public Module ScriptAddin
                 If ScriptDefDic("rresults")(c) Then
                     currWb.Names.Add(Name:="___ScriptResult" + ScriptDefDic("results")(c), RefersTo:=newQueryTable.ResultRange, Visible:=False)
                 End If
+                currWb.Names.Item(newQueryTable.Name).Delete()
                 newQueryTable.Delete()
                 LogInfo("inserted results from " + curWbPrefix + readdir + "\" + resFilename)
             Catch ex As Exception
-                If Not ScriptAddin.myMsgBox("Error in placing results in to Excel: " + ex.Message,, True) Then Return False
+                If Not ScriptAddin.UserMsg("Error in placing results in to Excel: " + ex.Message,, True) Then Return False
             End Try
         Next
         Return True
@@ -594,7 +601,7 @@ Public Module ScriptAddin
         For c As Integer = 0 To ScriptDefDic("diags").Length - 1
             errMsg = prepareParam(c, "diags", ScriptDataRange, diagFilename, readdir, ".png")
             If Len(errMsg) > 0 Then
-                If Not ScriptAddin.myMsgBox(errMsg,, True) Then Return False
+                If Not ScriptAddin.UserMsg(errMsg,, True) Then Return False
             End If
             ' clean previously set shape...
             For Each oldShape As Shape In ScriptDataRange.Worksheet.Shapes
@@ -606,7 +613,7 @@ Public Module ScriptAddin
             ' absolute paths begin with \\ or X:\ -> dont prefix with currWB path, else currWBpath\readdir
             Dim curWbPrefix As String = IIf(Left(readdir, 2) = "\\" Or Mid(readdir, 2, 2) = ":\", "", currWb.Path + "\")
             If Not File.Exists(curWbPrefix + readdir + "\" + diagFilename) Then
-                If Not ScriptAddin.myMsgBox("Diagram file '" + curWbPrefix + readdir + "\" + diagFilename + "' not found!",, True) Then Return False
+                If Not ScriptAddin.UserMsg("Diagram file '" + curWbPrefix + readdir + "\" + diagFilename + "' not found!",, True) Then Return False
             End If
 
             ' add new shape from picture
@@ -617,7 +624,7 @@ Public Module ScriptAddin
                 End With
                 LogInfo("added shape for diagram " + curWbPrefix + readdir + "\" + diagFilename)
             Catch ex As Exception
-                If Not ScriptAddin.myMsgBox("Error occured when placing the diagram into target range '" + ScriptDefDic("diags")(c) + "', " + ex.Message,, True) Then Return False
+                If Not ScriptAddin.UserMsg("Error occured when placing the diagram into target range '" + ScriptDefDic("diags")(c) + "', " + ex.Message,, True) Then Return False
             End Try
         Next
         Return True
@@ -637,14 +644,14 @@ Public Module ScriptAddin
             ' returns script and readdir !
             errMsg = prepareParam(c, "scripts", Nothing, script, readdir, "")
             If Len(errMsg) > 0 Then
-                If Not ScriptAddin.myMsgBox(errMsg,, True) Then Return False
+                If Not ScriptAddin.UserMsg(errMsg,, True) Then Return False
             End If
 
             ' absolute paths begin with \\ or X:\ -> dont prefix with currWB path, else currWBpath\scriptpath
             Dim curWbPrefix As String = IIf(Left(readdir, 2) = "\\" Or Mid(readdir, 2, 2) = ":\", "", currWb.Path + "\")
             Dim fullScriptPath = curWbPrefix + readdir
             If Not File.Exists(fullScriptPath + "\" + script) Then
-                ScriptAddin.myMsgBox("Script '" + fullScriptPath + "\" + script + "' not found!" + vbCrLf, True, True)
+                ScriptAddin.UserMsg("Script '" + fullScriptPath + "\" + script + "' not found!" + vbCrLf, True, True)
                 Return False
             End If
             ' check if executable exists or exists somewhere in the path....
@@ -660,10 +667,10 @@ Public Module ScriptAddin
                         End If
                     Next
                     If Not foundExe Then
-                        ScriptAddin.myMsgBox("Executable '" + ScriptExec + "' not found!" + vbCrLf, True, True)
+                        ScriptAddin.UserMsg("Executable '" + ScriptExec + "' not found!" + vbCrLf, True, True)
                         Return False
                     Else
-                        LogInfo("found rexec " + ScriptExec)
+                        LogInfo("found exec " + ScriptExec)
                     End If
                 End If
             End If
@@ -674,7 +681,7 @@ Public Module ScriptAddin
             ' returns filename and readdir !
             errMsg = prepareParam(c, "args", ScriptDataRange, filename, readdir, ".txt")
             If Len(errMsg) > 0 Then
-                If Not ScriptAddin.myMsgBox(errMsg,, True) Then Return False
+                If Not ScriptAddin.UserMsg(errMsg,, True) Then Return False
             End If
 
             ' absolute paths begin with \\ or X:\ -> dont prefix with currWB path, else currWBpath\argdir
@@ -684,7 +691,7 @@ Public Module ScriptAddin
                 Try
                     Directory.CreateDirectory(curWbPrefix + readdir)
                 Catch ex As Exception
-                    If Not ScriptAddin.myMsgBox("Error occured when trying to create input arguments containing folder '" + curWbPrefix + readdir + "', " + ex.Message,, True) Then Return False
+                    If Not ScriptAddin.UserMsg("Error occured when trying to create input arguments containing folder '" + curWbPrefix + readdir + "', " + ex.Message,, True) Then Return False
                 End Try
             End If
             ' remove any existing input files...
@@ -699,7 +706,7 @@ Public Module ScriptAddin
             ' returns filename and readdir !
             errMsg = prepareParam(c, "results", ScriptDataRange, filename, readdir, ".txt")
             If Len(errMsg) > 0 Then
-                If Not ScriptAddin.myMsgBox(errMsg,, True) Then Return False
+                If Not ScriptAddin.UserMsg(errMsg,, True) Then Return False
             End If
 
             ' absolute paths begin with \\ or X:\ -> dont prefix with currWB path, else currWBpath\argdir
@@ -709,7 +716,7 @@ Public Module ScriptAddin
                 Try
                     Directory.CreateDirectory(curWbPrefix + readdir)
                 Catch ex As Exception
-                    If Not ScriptAddin.myMsgBox("Error occured when trying to create result containing folder '" + curWbPrefix + readdir + "', " + ex.Message,, True) Then Return False
+                    If Not ScriptAddin.UserMsg("Error occured when trying to create result containing folder '" + curWbPrefix + readdir + "', " + ex.Message,, True) Then Return False
                 End Try
             End If
             ' remove any existing result files...
@@ -718,7 +725,7 @@ Public Module ScriptAddin
                     File.Delete(curWbPrefix + readdir + "\" + filename)
                     LogInfo("deleted result " + curWbPrefix + readdir + "\" + filename)
                 Catch ex As Exception
-                    If Not ScriptAddin.myMsgBox("Error occured when trying to remove '" + curWbPrefix + readdir + "\" + filename + "', " + ex.Message,, True) Then Return False
+                    If Not ScriptAddin.UserMsg("Error occured when trying to remove '" + curWbPrefix + readdir + "\" + filename + "', " + ex.Message,, True) Then Return False
                 End Try
             End If
         Next
@@ -728,7 +735,7 @@ Public Module ScriptAddin
             ' returns filename and readdir !
             errMsg = prepareParam(c, "diags", ScriptDataRange, filename, readdir, ".png")
             If Len(errMsg) > 0 Then
-                If Not ScriptAddin.myMsgBox(errMsg,, True) Then Return False
+                If Not ScriptAddin.UserMsg(errMsg,, True) Then Return False
             End If
             ' absolute paths begin with \\ or X:\ -> dont prefix with currWB path, else currWBpath\argdir
             Dim curWbPrefix As String = IIf(Left(readdir, 2) = "\\" Or Mid(readdir, 2, 2) = ":\", "", currWb.Path + "\")
@@ -737,7 +744,7 @@ Public Module ScriptAddin
                 Try
                     Directory.CreateDirectory(curWbPrefix + readdir)
                 Catch ex As Exception
-                    If Not ScriptAddin.myMsgBox("Error occured when trying to create diagram container folder '" + curWbPrefix + readdir + "', " + ex.Message,, True) Then Return False
+                    If Not ScriptAddin.UserMsg("Error occured when trying to create diagram container folder '" + curWbPrefix + readdir + "', " + ex.Message,, True) Then Return False
                 End Try
             End If
             ' remove any existing diagram files...
@@ -746,7 +753,7 @@ Public Module ScriptAddin
                     File.Delete(curWbPrefix + readdir + "\" + filename)
                     LogInfo("deleted diagram " + curWbPrefix + readdir + "\" + filename)
                 Catch ex As Exception
-                    If Not ScriptAddin.myMsgBox("Error occured when trying to remove '" + curWbPrefix + readdir + "\" + filename + "', " + ex.Message,, True) Then Return False
+                    If Not ScriptAddin.UserMsg("Error occured when trying to remove '" + curWbPrefix + readdir + "\" + filename + "', " + ex.Message,, True) Then Return False
                 End Try
             End If
         Next
@@ -766,7 +773,7 @@ Public Module ScriptAddin
                 Try
                     Directory.CreateDirectory(curWbPrefix + readdir)
                 Catch ex As Exception
-                    If Not ScriptAddin.myMsgBox("Error occured when trying to create script containing folder '" + curWbPrefix + readdir + "', " + ex.Message,, True) Then Return False
+                    If Not ScriptAddin.UserMsg("Error occured when trying to create script containing folder '" + curWbPrefix + readdir + "', " + ex.Message,, True) Then Return False
                 End Try
             End If
             ' remove any existing diagram files...
@@ -775,7 +782,7 @@ Public Module ScriptAddin
                     File.Delete(curWbPrefix + readdir + "\" + filename)
                     LogInfo("deleted temporary rscript " + curWbPrefix + readdir + "\" + filename)
                 Catch ex As Exception
-                    If Not ScriptAddin.myMsgBox("Error occured when trying to remove '" + curWbPrefix + readdir + "\" + filename + "', " + ex.Message,, True) Then Return False
+                    If Not ScriptAddin.UserMsg("Error occured when trying to remove '" + curWbPrefix + readdir + "\" + filename + "', " + ex.Message,, True) Then Return False
                 End Try
             End If
         Next

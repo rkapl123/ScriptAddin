@@ -22,7 +22,7 @@ Public Class AddInEvents
             If errStr = "no ScriptAddinNames" Then
                 ScriptAddin.resetScriptDefinitions()
             ElseIf errStr <> vbNullString Then
-                ScriptAddin.myMsgBox("Error when getting definitions in Workbook_Activate: " + errStr, True, True)
+                ScriptAddin.UserMsg("Error when getting definitions in Workbook_Activate: " + errStr, True, True)
             End If
         End If
         Trace.Listeners.Add(New ExcelDna.Logging.LogDisplayTraceListener())
@@ -48,12 +48,12 @@ Public Class AddInEvents
         ' avoid resetting ScriptDefinition when dropdown selected for a specific ScriptDefinition !
         If ScriptAddin.dropDownSelected Then
             errStr = ScriptAddin.getScriptDefinitions()
-            If errStr <> vbNullString Then ScriptAddin.myMsgBox("Error while getScriptDefinitions (dropdown selected !) in Workbook_Save: " + errStr, True, True)
+            If errStr <> vbNullString Then ScriptAddin.UserMsg("Error while getScriptDefinitions (dropdown selected !) in Workbook_Save: " + errStr, True, True)
         Else
             errStr = doDefinitions(Wb) ' includes getScriptDefinitions - for top sorted ScriptDefinition
-            If errStr = "no RNames" Then Exit Sub
+            If errStr = "no ScriptAddinNames" Then Exit Sub
             If errStr <> vbNullString Then
-                ScriptAddin.myMsgBox("Error when getting definitions in Workbook_Save: " + errStr, True, True)
+                ScriptAddin.UserMsg("Error when getting definitions in Workbook_Save: " + errStr, True, True)
                 Exit Sub
             End If
         End If
@@ -73,7 +73,7 @@ Public Class AddInEvents
         If errStr = "no ScriptAddinNames" Then
             ScriptAddin.resetScriptDefinitions()
         ElseIf errStr <> vbNullString Then
-            myMsgBox("Error when getting definitions in Workbook_Activate: " + errStr, True, True)
+            ScriptAddin.UserMsg("Error when getting definitions in Workbook_Activate: " + errStr, True, True)
         End If
         ScriptAddin.theRibbon.Invalidate()
     End Sub
@@ -88,7 +88,7 @@ Public Class AddInEvents
         errStr = ScriptAddin.getScriptNames()
         If errStr = "no ScriptAddinNames" Then Return errStr
         If errStr <> vbNullString Then
-            Return "Error while getRNames in doDefinitions: " + errStr
+            Return "Error while getScriptNames in doDefinitions: " + errStr
         End If
         ' get the definitions from the current defined range (first name in ScriptAddin Names)
         errStr = ScriptAddin.getScriptDefinitions()

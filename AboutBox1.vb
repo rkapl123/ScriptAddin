@@ -59,15 +59,15 @@ Public NotInheritable Class AboutBox1
     ''' <param name="sender"></param>
     ''' <param name="e"></param>
     Private Sub refreshScriptDef_Click(sender As Object, e As EventArgs) Handles refreshScriptDef.Click
-        Dim errStr As String
-        errStr = ScriptAddin.startScriptNamesRefresh()
+        ScriptAddin.initScriptExecutables()
+        Dim errStr As String = ScriptAddin.startScriptNamesRefresh()
         If Len(errStr) > 0 Then
-            ScriptAddin.myMsgBox("refresh Error: " & errStr, True, True)
+            ScriptAddin.UserMsg("refresh Error: " & errStr, True, True)
         Else
             If UBound(Scriptcalldefnames) = -1 Then
-                ScriptAddin.myMsgBox("no ScriptDefinitions found for ScriptAddin in current Workbook (3 column named range (type/value/path), minimum types: scriptexec and script)!", True)
+                ScriptAddin.UserMsg("no ScriptDefinitions found for ScriptAddin in current Workbook (3 column named range (type/value/path), minimum types: scriptexec and script)!", True)
             Else
-                ScriptAddin.myMsgBox("refreshed ScriptDefnames from current Workbook !", True)
+                ScriptAddin.UserMsg("refreshed ScriptDefnames from current Workbook !", True)
             End If
         End If
     End Sub
@@ -95,7 +95,7 @@ Public NotInheritable Class AboutBox1
         Try
             Net.ServicePointManager.SecurityProtocol = Net.SecurityProtocolType.Tls12 Or Net.SecurityProtocolType.SystemDefault
         Catch ex As Exception
-            ScriptAddin.myMsgBox("Error setting the SecurityProtocol: " + ex.Message())
+            ScriptAddin.UserMsg("Error setting the SecurityProtocol: " + ex.Message())
             Exit Sub
         End Try
 
@@ -142,7 +142,7 @@ Public NotInheritable Class AboutBox1
                     Me.Close()
                 End If
             Catch ex As Exception
-                ScriptAddin.myMsgBox("Error when opening local update folder: " + ex.Message())
+                ScriptAddin.UserMsg("Error when opening local update folder: " + ex.Message())
             End Try
             Exit Sub
         End If
@@ -154,7 +154,7 @@ Public NotInheritable Class AboutBox1
         Try
             IO.Directory.CreateDirectory(updatesDownloadFolder)
         Catch ex As Exception
-            ScriptAddin.myMsgBox("Couldn't create file download folder (" + updatesDownloadFolder + "): " + ex.Message())
+            ScriptAddin.UserMsg("Couldn't create file download folder (" + updatesDownloadFolder + "): " + ex.Message())
             Exit Sub
         End Try
 
@@ -166,7 +166,7 @@ Public NotInheritable Class AboutBox1
         Try
             response = requestGet.GetResponse()
         Catch ex As Exception
-            ScriptAddin.myMsgBox("Error when downloading new version: " + ex.Message())
+            ScriptAddin.UserMsg("Error when downloading new version: " + ex.Message())
             Exit Sub
         End Try
         ' save the version as zip file
@@ -186,14 +186,14 @@ Public NotInheritable Class AboutBox1
         Try
             Compression.ZipFile.ExtractToDirectory(updatesDownloadFolder + updateFilenameZip, updatesDownloadFolder)
         Catch ex As Exception
-            ScriptAddin.myMsgBox("Error when extracting new version: " + ex.Message())
+            ScriptAddin.UserMsg("Error when extracting new version: " + ex.Message())
         End Try
         Me.TextBoxDescription.Text = My.Application.Info.Description + vbCrLf + vbCrLf + "New version in " + updatesDownloadFolder + AddinName + updatesMajorVersion + curRevision.ToString() + "\Distribution, start deployAddin.cmd to install the new Version."
         Me.Refresh()
         Try
             System.Diagnostics.Process.Start("explorer.exe", updatesDownloadFolder + AddinName + updatesMajorVersion + curRevision.ToString() + "\Distribution")
         Catch ex As Exception
-            ScriptAddin.myMsgBox("Error when opening Distribution folder of new version: " + ex.Message())
+            ScriptAddin.UserMsg("Error when opening Distribution folder of new version: " + ex.Message())
         End Try
     End Sub
 

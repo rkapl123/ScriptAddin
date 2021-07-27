@@ -28,7 +28,7 @@ Public Class EditSettings
             settingsPath += ".config"
             settingsStr = File.ReadAllText(settingsPath, System.Text.Encoding.Default)
         Catch ex As Exception
-            ScriptAddin.myMsgBox("Couldn't read ScriptAddin.xll.config settings from " + settingsPath + ":" + ex.Message, True, True)
+            ScriptAddin.UserMsg("Couldn't read ScriptAddin.xll.config settings from " + settingsPath + ":" + ex.Message, True, True)
             Exit Sub
         End Try
         ' if central or user settings were chosen, overwrite settingsStr
@@ -47,12 +47,12 @@ Public Class EditSettings
                 Try
                     settingsStr = File.ReadAllText(settingsPath, System.Text.Encoding.Default)
                 Catch ex As Exception
-                    ScriptAddin.myMsgBox("Couldn't read Script Addin " + Me.Tag + " settings from " + settingsPath + ":" + ex.Message, True, True)
+                    ScriptAddin.UserMsg("Couldn't read Script Addin " + Me.Tag + " settings from " + settingsPath + ":" + ex.Message, True, True)
                     Exit Sub
                 End Try
                 Me.Text = Me.Tag + " settings in " + settingsPath
             Else
-                ScriptAddin.myMsgBox("No attribute available as filename reference to " + Me.Tag + " settings (searched xpath: " + xpathStr + ") !", True, True)
+                ScriptAddin.UserMsg("No attribute available as filename reference to " + Me.Tag + " settings (searched xpath: " + xpathStr + ") !", True, True)
                 Exit Sub
             End If
         End If
@@ -78,13 +78,13 @@ Public Class EditSettings
             doc.LoadXml(Me.EditBox.Text)
             doc.Validate(eventHandler)
         Catch ex As Exception
-            ScriptAddin.myMsgBox("Problems with parsing changed " + Me.Tag + " settings: " + ex.Message, True, True)
+            ScriptAddin.UserMsg("Problems with parsing changed " + Me.Tag + " settings: " + ex.Message, True, True)
             Exit Sub
         End Try
         Try
             File.WriteAllText(settingsPath, Me.EditBox.Text, System.Text.Encoding.UTF8)
         Catch ex As Exception
-            ScriptAddin.myMsgBox("Couldn't write " + Me.Tag + " settings into " + settingsPath + ": " + ex.Message, True, True)
+            ScriptAddin.UserMsg("Couldn't write " + Me.Tag + " settings into " + settingsPath + ": " + ex.Message, True, True)
             Exit Sub
         End Try
         Me.DialogResult = DialogResult.OK

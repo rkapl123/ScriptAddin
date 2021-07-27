@@ -43,38 +43,48 @@ Public Class ScriptOutput
             cmd.BeginOutputReadLine()
             cmd.BeginErrorReadLine()
         Catch ex As Exception
-            ScriptAddin.myMsgBox("Error occured when invoking script '" + ScriptAddin.fullScriptPath + "\" + ScriptAddin.script + "', using '" + ScriptAddin.ScriptExec + "'" + ex.Message + vbCrLf, True, True)
+            ScriptAddin.UserMsg("Error occured when invoking script '" + ScriptAddin.fullScriptPath + "\" + ScriptAddin.script + "', using '" + ScriptAddin.ScriptExec + "'" + ex.Message + vbCrLf, True, True)
             Me.errMsg = ex.Message
-            Me.Hide()
         End Try
 
     End Sub
 
     Private Sub myOutHandler(sender As Object, e As DataReceivedEventArgs)
-        Dim appendAction As Action(Of String, Boolean) = AddressOf appendTxt
-        appendAction.Invoke(e.Data + vbCrLf, False)
+        Dim appendAction As Action(Of String, System.Drawing.Color) = AddressOf appendTxt
+        appendAction.Invoke(e.Data + vbCrLf, System.Drawing.Color.White)
     End Sub
 
     Private Sub myErrHandler(sender As Object, e As DataReceivedEventArgs)
-        Dim appendAction As Action(Of String, Boolean) = AddressOf appendTxt
-        LogWarn("scripterror: " + e.Data)
-        Me.errMsg += e.Data
-        appendAction.Invoke(e.Data + vbCrLf, True)
+        If IsNothing(e.Data) Then Exit Sub
+        Dim appendAction As Action(Of String, System.Drawing.Color) = AddressOf appendTxt
+        If ScriptAddin.StdErrMeansError Then
+            LogWarn("script error: " + e.Data)
+            Me.errMsg += e.Data
+        End If
+        appendAction.Invoke(e.Data + vbCrLf, System.Drawing.Color.Red)
     End Sub
 
     Private Sub myExitHandler(sender As Object, e As System.EventArgs)
         LogInfo("executed " + ScriptAddin.fullScriptPath)
-        Me.Text = "Script Output ....... Finished script execution, exit code: " + cmd.ExitCode.ToString()
-        If Not ScriptAddin.debugScript Then Me.Hide()
+        ' need this line to wait for stdout/stderr to finish writing...
+        cmd.WaitForExit()
+        If ScriptAddin.debugScript Then
+            Dim appendAction As Action(Of String, System.Drawing.Color) = AddressOf appendTxt
+            appendAction.Invoke("Finished script execution, exit code: " + cmd.ExitCode.ToString(), System.Drawing.Color.Yellow)
+        Else
+            Me.Hide()
+        End If
     End Sub
 
-    Private Sub appendTxt(theText As String, errCol As Boolean)
+    Private Sub appendTxt(theText As String, textCol As System.Drawing.Color)
         Dim pos As Integer = ScriptOutputTextbox.TextLength
         ScriptOutputTextbox.AppendText(theText)
-        If errCol Then
+        If textCol <> System.Drawing.Color.White Then
+            ' select text to be colored
             ScriptOutputTextbox.Select(pos, theText.Length)
-            ScriptOutputTextbox.SelectionColor = System.Drawing.Color.Red
-            ScriptOutputTextbox.Select()
+            ScriptOutputTextbox.SelectionColor = textCol
+            ' deselect the text
+            ScriptOutputTextbox.Select(pos + theText.Length, 0)
         End If
     End Sub
 
@@ -92,10 +102,14 @@ Public Class ScriptOutput
     End Sub
 
     Private Sub ScriptOutput_Closing(sender As Object, e As CancelEventArgs) Handles Me.Closing
-        If Not IsNothing(cmd) AndAlso Not cmd.HasExited Then
-            cmd.CancelErrorRead()
-            cmd.CancelOutputRead()
-            cmd.Close()
+        If Not IsNothing(cmd) Then
+            Dim procFinished As Boolean = False
+            Try : procFinished = cmd.HasExited : Catch ex As Exception : End Try
+            If procFinished Then
+                cmd.CancelErrorRead()
+                cmd.CancelOutputRead()
+                cmd.Close()
+            End If
         End If
     End Sub
 
