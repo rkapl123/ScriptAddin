@@ -13,8 +13,9 @@ Public Class MenuHandler
     ''' <summary></summary>
     Public Sub ribbonLoaded(myribbon As IRibbonUI)
         ScriptAddin.theRibbon = myribbon
-        selectedScriptExecutable = CInt(fetchSetting("selectedScriptExecutable", "0"))
-        ScriptAddin.ScriptType = ScriptAddin.ScriptExecutables(selectedScriptExecutable)
+        ScriptAddin.debugScript = CBool(ScriptAddin.fetchSetting("debugScript", "False"))
+        selectedScriptExecutable = CInt(ScriptAddin.fetchSetting("selectedScriptExecutable", "0"))
+        If ScriptAddin.ScriptExecutables.Count > 0 Then ScriptAddin.ScriptType = ScriptAddin.ScriptExecutables(selectedScriptExecutable)
     End Sub
 
     ''' <summary>creates the Ribbon</summary>
@@ -36,7 +37,7 @@ Public Class MenuHandler
               "</buttonGroup>" +
             "<dialogBoxLauncher><button id='dialog' label='About Scriptaddin' onAction='refreshScriptDefs' tag='5' screentip='Show Aboutbox (and refresh ScriptDefinitions from current Workbook from there)'/></dialogBoxLauncher></group>" +
             "<group id='ScriptsGroup' label='Run Scripts defined in WB/sheet names'>"
-        Dim presetSheetButtonsCount As Integer = Int16.Parse(fetchSetting("presetSheetButtonsCount", "15"))
+        Dim presetSheetButtonsCount As Integer = Int16.Parse(ScriptAddin.fetchSetting("presetSheetButtonsCount", "15"))
         Dim thesize As String = IIf(presetSheetButtonsCount < 15, "normal", "large")
         For i As Integer = 0 To presetSheetButtonsCount
             customUIXml = customUIXml + "<dynamicMenu id='ID" + i.ToString() + "' " +
@@ -52,8 +53,8 @@ Public Class MenuHandler
     ''' <param name="control"></param>
     Public Sub showAddinConfig(control As IRibbonControl)
         ' if settings (addin, user, central) should not be displayed according to setting then exit...
-        If InStr(fetchSetting("disableSettingsDisplay", ""), control.Id) > 0 Then
-            ScriptAddin.myMsgBox("Display of " + control.Id + " settings disabled !", "ScriptAddin Settings disabled", MsgBoxStyle.Information)
+        If InStr(ScriptAddin.fetchSetting("disableSettingsDisplay", ""), control.Id) > 0 Then
+            ScriptAddin.UserMsg("Display of " + control.Id + " settings disabled !", True, True)
             Exit Sub
         End If
         Dim theSettingsDlg As EditSettings = New EditSettings()
@@ -75,10 +76,14 @@ Public Class MenuHandler
         Dim errStr As String
         ' set ScriptDefinition to invocaters range... invocating sheet is put into Tag
         ScriptAddin.ScriptDefinitionRange = ScriptAddin.ScriptDefsheetColl(control.Tag).Item(control.Id)
-        ScriptAddin.ScriptDefinitionRange.Parent.Select()
+        Try
+            ScriptAddin.ScriptDefinitionRange.Parent.Select()
+        Catch ex As Exception
+            ScriptAddin.UserMsg("Selection of worksheet of Script Definition Range not possible (probably because you're editing a cell)!", True, True)
+        End Try
         ScriptAddin.ScriptDefinitionRange.Select()
         errStr = ScriptAddin.startScriptprocess()
-        If errStr <> "" Then myMsgBox(errStr, True, True)
+        If errStr <> "" Then ScriptAddin.UserMsg(errStr, True, True)
     End Sub
 
     ''' <summary>reflect the change in the togglebuttons title</summary>
@@ -106,6 +111,7 @@ Public Class MenuHandler
     Public Sub toggleButton(control As IRibbonControl, pressed As Boolean)
         If control.Id = "debug" Then
             ScriptAddin.debugScript = pressed
+            ScriptAddin.setUserSetting("debugScript", pressed.ToString())
             If Not IsNothing(ScriptAddin.theScriptOutput) Then
                 If pressed Then
                     ScriptAddin.theScriptOutput.Opacity = 1.0
@@ -198,7 +204,7 @@ Public Class MenuHandler
     Public Sub selectItemExec(control As IRibbonControl, id As String, index As Integer)
         selectedScriptExecutable = index
         ScriptAddin.ScriptType = ScriptAddin.ScriptExecutables(selectedScriptExecutable)
-        setUserSetting("selectedScriptExecutable", index.ToString())
+        ScriptAddin.setUserSetting("selectedScriptExecutable", index.ToString())
     End Sub
 
     ''' <summary>display warning icon on log button if warning has been logged...</summary>
