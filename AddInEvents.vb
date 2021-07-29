@@ -81,7 +81,7 @@ Public Class AddInEvents
     ''' <summary>get ScriptAddin Names of current workbook and load ScriptDefinitions of first name in ScriptAddin Names</summary>
     Private Function doDefinitions(Wb As Workbook) As String
         Dim errStr As String
-        currWb = Wb
+        ScriptAddin.currWb = Wb
         ' always reset ScriptDefinitions when changing Workbooks (may not be the current one, if saved programmatically!), otherwise this is not being refilled in getScriptNames
         ScriptDefinitionRange = Nothing
         ' get the defined ScriptAddin Names

@@ -8,13 +8,14 @@ Imports System.Configuration
 Public Class MenuHandler
     Inherits ExcelRibbon
     ''' <summary>the selected index of the script executable (R, Python,...)</summary>
-    Private selectedScriptExecutable As Integer
+    Public selectedScriptExecutable As Integer
 
     ''' <summary></summary>
     Public Sub ribbonLoaded(myribbon As IRibbonUI)
         ScriptAddin.theRibbon = myribbon
         ScriptAddin.debugScript = CBool(ScriptAddin.fetchSetting("debugScript", "False"))
         selectedScriptExecutable = CInt(ScriptAddin.fetchSetting("selectedScriptExecutable", "0"))
+        ScriptAddin.WarningIssued = False
         If ScriptAddin.ScriptExecutables.Count > 0 Then ScriptAddin.ScriptType = ScriptAddin.ScriptExecutables(selectedScriptExecutable)
     End Sub
 
@@ -71,11 +72,12 @@ Public Class MenuHandler
         theRibbon.Invalidate()
     End Sub
 
-    ''' <summary></summary>
+    ''' <summary>after clicking on the script dropdown button, the defined script definition is started</summary>
     Public Sub startScript(control As IRibbonControl)
         Dim errStr As String
         ' set ScriptDefinition to invocaters range... invocating sheet is put into Tag
         ScriptAddin.ScriptDefinitionRange = ScriptAddin.ScriptDefsheetColl(control.Tag).Item(control.Id)
+        ScriptAddin.SkipScriptAndPreparation = My.Computer.Keyboard.CtrlKeyDown
         Try
             ScriptAddin.ScriptDefinitionRange.Parent.Select()
         Catch ex As Exception
@@ -226,7 +228,6 @@ Public Class MenuHandler
         ScriptAddin.WarningIssued = False
         theRibbon.InvalidateControl("showLog")
     End Sub
-
 
     ''' <summary>set the name of the WB/sheet dropdown to the sheet name (for the WB dropdown this is the WB name)</summary>
     ''' <returns></returns>

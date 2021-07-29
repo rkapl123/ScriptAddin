@@ -21,7 +21,7 @@ Public Module ScriptAddin
     Public ScriptExecAddPath As String
     ''' <summary>If Scriptengine writes to StdError, regard this as an error for further processing (some write to StdError in case of no error)</summary>
     Public StdErrMeansError As Boolean
-    ''' <summary>for DBMapper invocations by execDBModif, this is set to true, avoiding MsgBox</summary>
+    ''' <summary>for ScriptAddin invocations by executeScript, this is set to true, avoiding a MsgBox</summary>
     Public nonInteractive As Boolean = False
     ''' <summary>collect non interactive error messages here</summary>
     Public nonInteractiveErrMsgs As String
@@ -29,6 +29,10 @@ Public Module ScriptAddin
     Public DebugAddin As Boolean
     ''' <summary>The path where the User specific settings (overrides) can be found</summary>
     Public UserSettingsPath As String
+    ''' <summary>skip script preparation and execution</summary>
+    Public SkipScriptAndPreparation As Boolean
+    ''' <summary>indicates an error in execution of DBModifiers, used for commit/rollback and for noninteractive message return</summary>
+    Public hadError As Boolean
 
     ''' <summary>the current workbook, used for reference of all script related actions (only one workbook is supported to hold script definitions)</summary>
     Public currWb As Workbook
@@ -70,77 +74,64 @@ Public Module ScriptAddin
         ' get the definition range
         errStr = getScriptDefinitions()
         If errStr <> vbNullString Then Return "Failed getting ScriptDefinitions: " + errStr
-        Try
-            If Not removeFiles() Then Return vbNullString
-            If Not storeArgs() Then Return vbNullString
-            If Not storeScriptRng() Then Return vbNullString
-            If Not invokeScripts() Then Return vbNullString
-        Catch ex As Exception
-            Return "Exception in Shell ScriptDefinitions run: " + ex.Message + ex.StackTrace
-        End Try
+        If SkipScriptAndPreparation Then
+            finishScriptprocess()
+        Else
+            Try
+                If Not removeFiles() Then Return vbNullString
+                If Not storeArgs() Then Return vbNullString
+                If Not storeScriptRng() Then Return vbNullString
+                If Not invokeScripts() Then Return vbNullString
+            Catch ex As Exception
+                Return "Exception in ScriptDefinitions preparation and execution: " + ex.Message + ex.StackTrace
+            End Try
+        End If
         ' all is OK = return nullstring
         Return vbNullString
+    End Function
+
+    ''' <summary>execute given ScriptDefName, used for VBA call by Application.Run</summary>
+    ''' <param name="ScriptDefName">Name of Script Definition</param>
+    ''' <param name="headLess">if set to true, ScriptAddin will avoid to issue messages and return messages in exceptions which are returned (headless)</param>
+    ''' <returns>empty string on success, error message otherwise</returns>
+    <ExcelCommand(Name:="executeScript")>
+    Public Function executeScript(ScriptDefName As String, Optional headLess As Boolean = False) As String
+        hadError = False : nonInteractive = headLess
+        nonInteractiveErrMsgs = "" ' reset noninteractive messages
+        Try
+            ScriptAddin.ScriptDefinitionRange = ExcelDnaUtil.Application.ActiveWorkbook.Names.Item(ScriptDefName).RefersToRange
+        Catch ex As Exception
+            nonInteractive = False
+            Return "No Script Definition Range (" + ScriptDefName + ") found in Active Workbook: " + ex.Message
+        End Try
+        LogInfo("Doing Script '" + ScriptDefName + "'.")
+        Try
+            currWb = ExcelDnaUtil.Application.ActiveWorkbook
+            Dim errStr As String = ScriptAddin.getScriptNames()
+            If errStr <> "" Then Throw New Exception("Error in ScriptAddin.getScriptNames: " + errStr)
+            errStr = ScriptAddin.startScriptprocess()
+            If errStr <> "" Then Throw New Exception("Error in ScriptAddin.startScriptprocess: " + errStr)
+        Catch ex As Exception
+            nonInteractive = False
+            hadError = True
+            Return "Script Definition '" + ScriptDefName + "' execution had following error(s): " + ex.Message
+        End Try
+        nonInteractive = False
+        If hadError Then Return nonInteractiveErrMsgs
+        Return "" ' no error, no message
     End Function
 
     ''' <summary>After all script invocations have finished, this is called to get the results and diagrams into the current excel workbook</summary>
     ''' <returns>Error message or null string in case of success</returns>
     Public Function finishScriptprocess() As String
-        avoidFurtherMsgBoxes = False
         Try
             If Not getResults() Then Return vbNullString
             If Not getDiags() Then Return vbNullString
         Catch ex As Exception
-            Return "Exception in Shell ScriptDefinitions run: " + ex.Message + ex.StackTrace
+            Return "Exception in ScriptDefinitions finalization: " + ex.Message + ex.StackTrace
         End Try
         ' all is OK = return nullstring
         Return vbNullString
-    End Function
-
-    ''' <summary>Msgbox that avoids further Msgboxes (click Yes) or cancels run altogether (click Cancel)</summary>
-    ''' <param name="message"></param>
-    ''' <returns>True if further Msgboxes should be avoided, False otherwise</returns>
-    Public Function UserMsg(message As String, Optional noAvoidChoice As Boolean = False, Optional IsWarning As Boolean = False) As Boolean
-        Dim theMethod As Object = (New System.Diagnostics.StackTrace).GetFrame(1).GetMethod
-        Dim caller As String = theMethod.ReflectedType.FullName & "." & theMethod.Name
-
-        If IsWarning Then
-            Trace.TraceWarning("{0}: {1}", caller, message)
-            WarningIssued = True
-        Else
-            Trace.TraceInformation("{0}: {1}", caller, message)
-        End If
-
-        theRibbon.InvalidateControl("showLog")
-        If noAvoidChoice Then
-            MsgBox(message, MsgBoxStyle.OkOnly + IIf(IsWarning, MsgBoxStyle.Critical, MsgBoxStyle.Information), "ScriptAddin Message")
-            Return False
-        Else
-            If avoidFurtherMsgBoxes Then Return True
-            Dim retval As MsgBoxResult = MsgBox(message + vbCrLf + "Avoid further Messages (Yes/No) or abort ScriptDefinition (Cancel)", MsgBoxStyle.YesNoCancel, "ScriptAddin Message")
-            If retval = MsgBoxResult.Yes Then avoidFurtherMsgBoxes = True
-            Return (retval = MsgBoxResult.Yes Or retval = MsgBoxResult.No)
-        End If
-    End Function
-
-    ''' <summary>ask User (default OKCancel) and log as warning if Critical Or Exclamation (logged errors would pop up the trace information window)</summary> 
-    ''' <param name="theMessage">the question to be shown/logged</param>
-    ''' <param name="questionType">optionally pass question box type, default MsgBoxStyle.OKCancel</param>
-    ''' <param name="questionTitle">optionally pass a title for the msgbox instead of default DBAddin Question</param>
-    ''' <param name="msgboxIcon">optionally pass a different Msgbox icon (style) instead of default MsgBoxStyle.Question</param>
-    ''' <returns>choice as MsgBoxResult (Yes, No, OK, Cancel...)</returns>
-    Public Function QuestionMsg(theMessage As String, Optional questionType As MsgBoxStyle = MsgBoxStyle.OkCancel, Optional questionTitle As String = "DBAddin Question", Optional msgboxIcon As MsgBoxStyle = MsgBoxStyle.Question) As MsgBoxResult
-        Dim theMethod As Object = (New System.Diagnostics.StackTrace).GetFrame(1).GetMethod
-        Dim caller As String = theMethod.ReflectedType.FullName + "." + theMethod.Name
-        WriteToLog(theMessage, If(msgboxIcon = MsgBoxStyle.Critical Or msgboxIcon = MsgBoxStyle.Exclamation, EventLogEntryType.Warning, EventLogEntryType.Information), caller) ' to avoid popup of trace log
-        If nonInteractive Then
-            If questionType = MsgBoxStyle.OkCancel Then Return MsgBoxResult.Cancel
-            If questionType = MsgBoxStyle.YesNo Then Return MsgBoxResult.No
-            If questionType = MsgBoxStyle.YesNoCancel Then Return MsgBoxResult.No
-            If questionType = MsgBoxStyle.RetryCancel Then Return MsgBoxResult.Cancel
-        End If
-        ' tab is not activated BEFORE Msgbox as Excel first has to get into the interaction thread outside this one..
-        If theRibbon IsNot Nothing Then theRibbon.ActivateTab("ScriptaddinTab")
-        Return MsgBox(theMessage, msgboxIcon + questionType, questionTitle)
     End Function
 
     ''' <summary>refresh ScriptNames from Workbook on demand (currently when invoking about box)</summary>
@@ -148,7 +139,7 @@ Public Module ScriptAddin
     Public Function startScriptNamesRefresh() As String
         Dim errStr As String
         If currWb Is Nothing Then Return "No Workbook active to refresh ScriptNames from..."
-        ' always reset ScriptDefinitions when changing Workbooks, otherwise this is not being refilled in getRNames
+        ' always reset ScriptDefinitions when refreshing, otherwise this is not being refilled in getRNames
         ScriptDefinitionRange = Nothing
         ' get the defined Script_/R_Addin Names
         errStr = getScriptNames()
@@ -211,7 +202,6 @@ Public Module ScriptAddin
     ''' <summary>reset all ScriptDefinition representations</summary>
     Public Sub resetScriptDefinitions()
         ScriptDefDic("args") = {}
-        ScriptDefDic("argsrc") = {}
         ScriptDefDic("argspaths") = {}
         ScriptDefDic("results") = {}
         ScriptDefDic("rresults") = {}
@@ -219,6 +209,7 @@ Public Module ScriptAddin
         ScriptDefDic("diags") = {}
         ScriptDefDic("diagspaths") = {}
         ScriptDefDic("scripts") = {}
+        ScriptDefDic("skipscripts") = {}
         ScriptDefDic("scriptspaths") = {}
         ScriptDefDic("scriptrng") = {}
         ScriptDefDic("scriptrngpaths") = {}
@@ -234,20 +225,43 @@ Public Module ScriptAddin
             ScriptExec = Nothing ' same for ScriptExec and other settings
             ScriptExecAddPath = ""
             ScriptFileSuffix = ""
+            StdErrMeansError = True
             For Each defRow As Range In ScriptDefinitionRange.Rows
                 Dim deftype As String, defval As String, deffilepath As String
                 deftype = LCase(defRow.Cells(1, 1).Value2)
                 defval = defRow.Cells(1, 2).Value2
+                defval = If(defval = vbNullString, "", defval)
                 deffilepath = defRow.Cells(1, 3).Value2
-                If deftype = "exec" And defval <> vbNullString Then
-                    ScriptExec = defval
-                    ScriptExecArgs = deffilepath
-                ElseIf deftype = "path" And defval <> vbNullString Then
-                    ScriptExecAddPath = defval
-                    ScriptFileSuffix = deffilepath
-                ElseIf deftype = "arg" Or deftype = "argr" Or deftype = "argc" Or deftype = "argrc" Or deftype = "argcr" Then
-                    ReDim Preserve ScriptDefDic("argsrc")(ScriptDefDic("argsrc").Length)
-                    ScriptDefDic("argsrc")(ScriptDefDic("argsrc").Length - 1) = Replace(deftype, "arg", "")
+                deffilepath = If(deffilepath = vbNullString, "", deffilepath)
+                If (deftype = "exec" Or deftype = "rexec") Then
+                    If defval <> "" Then
+                        ScriptExec = defval
+                        ScriptExecArgs = deffilepath
+                    End If
+                ElseIf deftype = "skipscript" Then
+                    If defval <> "" Then
+                        ReDim Preserve ScriptDefDic("skipscripts")(ScriptDefDic("skipscripts").Length)
+                        ScriptDefDic("skipscripts")(ScriptDefDic("skipscripts").Length - 1) = True
+                        ReDim Preserve ScriptDefDic("scripts")(ScriptDefDic("scripts").Length)
+                        ScriptDefDic("scripts")(ScriptDefDic("scripts").Length - 1) = defval
+                        ReDim Preserve ScriptDefDic("scriptspaths")(ScriptDefDic("scriptspaths").Length)
+                        ScriptDefDic("scriptspaths")(ScriptDefDic("scriptspaths").Length - 1) = deffilepath
+                    End If
+                ElseIf deftype = "path" And defval <> "" Then
+                    If defval <> "" Then
+                        ScriptExecAddPath = defval
+                        ScriptFileSuffix = deffilepath
+                    End If
+                ElseIf deftype = "type" Then
+                    If ScriptExecutables.Contains(defval) Then
+                        ScriptType = defval
+                        theMenuHandler.selectedScriptExecutable = ScriptExecutables.IndexOf(ScriptType)
+                        theRibbon.InvalidateControl("execDropDown")
+                        StdErrMeansError = Not (deffilepath.ToLower() = "n" Or deffilepath.ToLower() = "no")
+                    Else
+                        Return "Error in setting type, not contained in available types/executables (check AppSettings for available ExePath<> entries)!"
+                    End If
+                ElseIf deftype = "arg" Then
                     ReDim Preserve ScriptDefDic("args")(ScriptDefDic("args").Length)
                     ScriptDefDic("args")(ScriptDefDic("args").Length - 1) = defval
                     ReDim Preserve ScriptDefDic("argspaths")(ScriptDefDic("argspaths").Length)
@@ -257,6 +271,7 @@ Public Module ScriptAddin
                     ScriptDefDic("scriptrng")(ScriptDefDic("scriptrng").Length - 1) = IIf(Right(deftype, 4) = "cell", "=", "") + defval
                     ReDim Preserve ScriptDefDic("scriptrngpaths")(ScriptDefDic("scriptrngpaths").Length)
                     ScriptDefDic("scriptrngpaths")(ScriptDefDic("scriptrngpaths").Length - 1) = deffilepath
+                    ' don't set skipscripts here to False as this is done in method storeScriptRng
                 ElseIf deftype = "res" Or deftype = "rres" Then
                     ReDim Preserve ScriptDefDic("rresults")(ScriptDefDic("rresults").Length)
                     ScriptDefDic("rresults")(ScriptDefDic("rresults").Length - 1) = (deftype = "rres")
@@ -274,8 +289,12 @@ Public Module ScriptAddin
                     ScriptDefDic("scripts")(ScriptDefDic("scripts").Length - 1) = defval
                     ReDim Preserve ScriptDefDic("scriptspaths")(ScriptDefDic("scriptspaths").Length)
                     ScriptDefDic("scriptspaths")(ScriptDefDic("scriptspaths").Length - 1) = deffilepath
+                    ReDim Preserve ScriptDefDic("skipscripts")(ScriptDefDic("skipscripts").Length)
+                    ScriptDefDic("skipscripts")(ScriptDefDic("skipscripts").Length - 1) = False
                 ElseIf deftype = "dir" Then
                     dirglobal = defval
+                Else
+                    Return "Error in getScriptDefinitions: invalid type '" + deftype + "' found in script definition!"
                 End If
             Next
             ' get default ScriptExec path from user (or overriden in appSettings tag as redirect to global) settings. This can be overruled by individual script exec settings in ScriptDefinitions
@@ -285,7 +304,7 @@ Public Module ScriptAddin
             If ScriptExecArgs = "" Then ScriptExecArgs = fetchSetting("ExeArgs" + ScriptType, "")
             If ScriptExec = "" Then Return "Error in getScriptDefinitions: ScriptExec not defined (check AppSettings for available ExePath<> entries)"
             If ScriptDefDic("scripts").Length = 0 And ScriptDefDic("scriptrng").Length = 0 Then Return "Error in getScriptDefinitions: no script(s) or scriptRng(s) defined in " + ScriptDefinitionRange.Name.Name
-            StdErrMeansError = fetchSetting("StdErrX" + ScriptType, "True")
+            If StdErrMeansError Then StdErrMeansError = CBool(fetchSetting("StdErrX" + ScriptType, "True"))
         Catch ex As Exception
             Return "Error in getScriptDefinitions: " + ex.Message
         End Try
@@ -430,6 +449,8 @@ Public Module ScriptAddin
                 ScriptDefDic("scripts")(ScriptDefDic("scripts").Length - 1) = scriptRngFilename
                 ReDim Preserve ScriptDefDic("scriptspaths")(ScriptDefDic("scriptspaths").Length)
                 ScriptDefDic("scriptspaths")(ScriptDefDic("scriptspaths").Length - 1) = scriptRngdir
+                ReDim Preserve ScriptDefDic("skipscripts")(ScriptDefDic("skipscripts").Length)
+                ScriptDefDic("skipscripts")(ScriptDefDic("skipscripts").Length - 1) = False
 
                 ' write the ScriptDataRange or scriptText (if script directly in cell/formula right next to scriptrng) to file
                 If Not IsNothing(scriptText) Then
@@ -474,6 +495,9 @@ Public Module ScriptAddin
         Task.Run(Async Function()
                      Dim ErrMsg As String = ""
                      For c As Integer = 0 To ScriptDefDic("scripts").Length - 1
+                         ' skip script if defined...
+                         If ScriptDefDic("skipscripts")(c) Then Continue For
+                         ' in case you are wondering about scriptrng, this reuses the scripts dictionary by adding the saved file to the parameters...
                          ErrMsg = prepareParam(c, "scripts", Nothing, script, scriptpath, "")
                          If Len(ErrMsg) > 0 Then
                              ' allow to ignore preparation errors...
@@ -556,7 +580,7 @@ Public Module ScriptAddin
                 newQueryTable = ScriptDataRange.Worksheet.QueryTables.Add(Connection:="TEXT;" & curWbPrefix + readdir + "\" + resFilename, Destination:=ScriptDataRange)
                 '                    .TextFilePlatform = 850
                 With newQueryTable
-                    .Name = "Data"
+                    .Name = "ScriptAddinResultData"
                     .FieldNames = True
                     .RowNumbers = False
                     .FillAdjacentFormulas = False
@@ -581,7 +605,9 @@ Public Module ScriptAddin
                 If ScriptDefDic("rresults")(c) Then
                     currWb.Names.Add(Name:="___ScriptResult" + ScriptDefDic("results")(c), RefersTo:=newQueryTable.ResultRange, Visible:=False)
                 End If
-                currWb.Names.Item(newQueryTable.Name).Delete()
+                ' to avoid "hanging" names (Data) which add up quickly, try to remove the actually given name (could also be Data_1 if Data already exists) both from workbook and from current sheet
+                Try : currWb.Names.Item(newQueryTable.Name).Delete() : Catch ex As Exception : End Try
+                Try : ScriptDataRange.Worksheet.Names.Item(newQueryTable.Name).Delete() : Catch ex As Exception : End Try
                 newQueryTable.Delete()
                 LogInfo("inserted results from " + curWbPrefix + readdir + "\" + resFilename)
             Catch ex As Exception
@@ -641,6 +667,8 @@ Public Module ScriptAddin
 
         ' check for script existence before creating any potential missing folders below...
         For c As Integer = 0 To ScriptDefDic("scripts").Length - 1
+            ' skip script if defined...
+            If ScriptDefDic("skipscripts")(c) Then Continue For
             Dim script As String = vbNullString
             ' returns script and readdir !
             errMsg = prepareParam(c, "scripts", Nothing, script, readdir, "")
@@ -835,14 +863,55 @@ Public Module ScriptAddin
         ConfigurationManager.RefreshSection("UserSettings")
     End Sub
 
+    ''' <summary>Msgbox that avoids further Msgboxes (click Yes) or cancels run altogether (click Cancel)</summary>
+    ''' <param name="message"></param>
+    ''' <returns>True if further Msgboxes should be avoided, False otherwise</returns>
+    Public Function UserMsg(message As String, Optional noAvoidChoice As Boolean = False, Optional IsWarning As Boolean = False) As Boolean
+        Dim theMethod As Object = (New System.Diagnostics.StackTrace).GetFrame(1).GetMethod
+        Dim caller As String = theMethod.ReflectedType.FullName & "." & theMethod.Name
+        WriteToLog(message, If(IsWarning, EventLogEntryType.Warning, EventLogEntryType.Information), caller)
+        If nonInteractive Then Return False
+        theRibbon.InvalidateControl("showLog")
+        If noAvoidChoice Then
+            MsgBox(message, MsgBoxStyle.OkOnly + IIf(IsWarning, MsgBoxStyle.Critical, MsgBoxStyle.Information), "ScriptAddin Message")
+            Return False
+        Else
+            If avoidFurtherMsgBoxes Then Return True
+            Dim retval As MsgBoxResult = MsgBox(message + vbCrLf + "Avoid further Messages (Yes/No) or abort ScriptDefinition (Cancel)", MsgBoxStyle.YesNoCancel, "ScriptAddin Message")
+            If retval = MsgBoxResult.Yes Then avoidFurtherMsgBoxes = True
+            Return (retval = MsgBoxResult.Yes Or retval = MsgBoxResult.No)
+        End If
+    End Function
+
+    ''' <summary>ask User (default OKCancel) and log as warning if Critical Or Exclamation (logged errors would pop up the trace information window)</summary> 
+    ''' <param name="theMessage">the question to be shown/logged</param>
+    ''' <param name="questionType">optionally pass question box type, default MsgBoxStyle.OKCancel</param>
+    ''' <param name="questionTitle">optionally pass a title for the msgbox instead of default DBAddin Question</param>
+    ''' <param name="msgboxIcon">optionally pass a different Msgbox icon (style) instead of default MsgBoxStyle.Question</param>
+    ''' <returns>choice as MsgBoxResult (Yes, No, OK, Cancel...)</returns>
+    Public Function QuestionMsg(theMessage As String, Optional questionType As MsgBoxStyle = MsgBoxStyle.OkCancel, Optional questionTitle As String = "DBAddin Question", Optional msgboxIcon As MsgBoxStyle = MsgBoxStyle.Question) As MsgBoxResult
+        Dim theMethod As Object = (New System.Diagnostics.StackTrace).GetFrame(1).GetMethod
+        Dim caller As String = theMethod.ReflectedType.FullName + "." + theMethod.Name
+        WriteToLog(theMessage, If(msgboxIcon = MsgBoxStyle.Critical Or msgboxIcon = MsgBoxStyle.Exclamation, EventLogEntryType.Warning, EventLogEntryType.Information), caller) ' to avoid popup of trace log
+        If nonInteractive Then
+            If questionType = MsgBoxStyle.OkCancel Then Return MsgBoxResult.Cancel
+            If questionType = MsgBoxStyle.YesNo Then Return MsgBoxResult.No
+            If questionType = MsgBoxStyle.YesNoCancel Then Return MsgBoxResult.No
+            If questionType = MsgBoxStyle.RetryCancel Then Return MsgBoxResult.Cancel
+        End If
+        ' tab is not activated BEFORE Msgbox as Excel first has to get into the interaction thread outside this one..
+        If theRibbon IsNot Nothing Then theRibbon.ActivateTab("ScriptaddinTab")
+        Return MsgBox(theMessage, msgboxIcon + questionType, questionTitle)
+    End Function
+
     ''' <summary>Logs Message of eEventType to System.Diagnostics.Trace</summary>
     ''' <param name="Message">Message to be logged</param>
     ''' <param name="eEventType">event type: info, warning, error</param>
     ''' <param name="caller">reflection based caller information: module.method</param>
     Private Sub WriteToLog(Message As String, eEventType As EventLogEntryType, caller As String)
-        ' collect errors and warnings for returning messages in executeDBModif
-        If eEventType = EventLogEntryType.Error Or eEventType = EventLogEntryType.Warning Then nonInteractiveErrMsgs += caller + ":" + Message + vbCrLf
         If nonInteractive Then
+            ' collect errors and warnings for returning messages in executeScript
+            If eEventType = EventLogEntryType.Error Or eEventType = EventLogEntryType.Warning Then nonInteractiveErrMsgs += caller + ":" + Message + vbCrLf
             Trace.TraceInformation("Noninteractive: {0}: {1}", caller, Message)
         Else
             Select Case eEventType

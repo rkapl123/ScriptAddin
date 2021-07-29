@@ -3,18 +3,12 @@ Set /P answr=deploy (r)elease (empty for debug)?
 set source=bin\Debug
 If "%answr%"=="r" (
 	set source=bin\Release
-)
-if exist "C:\Program Files\Microsoft Office\root\" (
-	echo 64bit office
 	copy /Y %source%\ScriptAddin-AddIn64-packed.xll Distribution\ScriptAddin64.xll"
-) else (
-	echo 32bit office
 	copy /Y %source%\ScriptAddin-AddIn-packed.xll Distribution\ScriptAddin32.xll"
+	copy /Y %source%\ScriptAddin.dll.config Distribution\ScriptAddin.xll.config
+	copy /Y ScriptAddinCentral.config Distribution
+	copy /Y ScriptAddinUser.config Distribution
 )
-copy /Y %source%\ScriptAddin.pdb Distribution
-copy /Y %source%\ScriptAddin.dll.config Distribution\ScriptAddin.xll.config
-copy /Y ScriptAddinCentral.config Distribution
-copy /Y ScriptAddinUser.config Distribution
 
 if exist "C:\Program Files\Microsoft Office\root\" (
 	echo 64bit office
