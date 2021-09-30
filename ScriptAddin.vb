@@ -293,7 +293,7 @@ Public Module ScriptAddin
                     ScriptDefDic("skipscripts")(ScriptDefDic("skipscripts").Length - 1) = False
                 ElseIf deftype = "dir" Then
                     dirglobal = defval
-                Else
+                ElseIf deftype <> "" Then
                     Return "Error in getScriptDefinitions: invalid type '" + deftype + "' found in script definition!"
                 End If
             Next
