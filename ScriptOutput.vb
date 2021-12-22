@@ -15,7 +15,7 @@ Public Class ScriptOutput
 
         ' Add any initialization after the InitializeComponent() call.
         Try
-            Dim args As String = ScriptAddin.ScriptExecArgs + " """ + ScriptAddin.fullScriptPath + "\" + ScriptAddin.script + """"
+            Dim args As String = ScriptAddin.ScriptExecArgs + " """ + ScriptAddin.fullScriptPath + "\" + ScriptAddin.script + """ " + ScriptAddin.scriptarguments
             Directory.SetCurrentDirectory(ScriptAddin.fullScriptPath)
             Dim pstartInfo = New ProcessStartInfo With {
                 .FileName = ScriptAddin.ScriptExec,
@@ -91,14 +91,16 @@ Public Class ScriptOutput
     Private Sub ScriptOutput_KeyUp(sender As Object, e As KeyEventArgs) Handles Me.KeyUp
         If Not IsNothing(cmd) Then
             If e.KeyCode = Keys.Escape Then
+                cmd.Close()
                 Me.Hide()
             ElseIf e.KeyCode = Keys.Enter Then
-                cmd.StandardInput.Write(e.KeyCode)
                 cmd.StandardInput.WriteLine()
-            Else
-                cmd.StandardInput.Write(e.KeyCode)
             End If
         End If
+    End Sub
+
+    Private Sub ScriptOutput_KeyPress(sender As Object, e As KeyPressEventArgs) Handles Me.KeyPress
+        cmd.StandardInput.Write(e.KeyChar)
     End Sub
 
     Private Sub ScriptOutput_Closing(sender As Object, e As CancelEventArgs) Handles Me.Closing

@@ -238,14 +238,14 @@ Public Module ScriptAddin
                         ScriptExec = defval
                         ScriptExecArgs = deffilepath
                     End If
-                ElseIf deftype = "skipscript" Then
+                ElseIf deftype = "skipscript" Or deftype = "script" Then
                     If defval <> "" Then
-                        ReDim Preserve ScriptDefDic("skipscripts")(ScriptDefDic("skipscripts").Length)
-                        ScriptDefDic("skipscripts")(ScriptDefDic("skipscripts").Length - 1) = True
                         ReDim Preserve ScriptDefDic("scripts")(ScriptDefDic("scripts").Length)
                         ScriptDefDic("scripts")(ScriptDefDic("scripts").Length - 1) = defval
                         ReDim Preserve ScriptDefDic("scriptspaths")(ScriptDefDic("scriptspaths").Length)
                         ScriptDefDic("scriptspaths")(ScriptDefDic("scriptspaths").Length - 1) = deffilepath
+                        ReDim Preserve ScriptDefDic("skipscripts")(ScriptDefDic("skipscripts").Length)
+                        ScriptDefDic("skipscripts")(ScriptDefDic("skipscripts").Length - 1) = (deftype = "skipscript")
                     End If
                 ElseIf deftype = "path" And defval <> "" Then
                     If defval <> "" Then
@@ -284,13 +284,6 @@ Public Module ScriptAddin
                     ScriptDefDic("diags")(ScriptDefDic("diags").Length - 1) = defval
                     ReDim Preserve ScriptDefDic("diagspaths")(ScriptDefDic("diagspaths").Length)
                     ScriptDefDic("diagspaths")(ScriptDefDic("diagspaths").Length - 1) = deffilepath
-                ElseIf deftype = "script" Then
-                    ReDim Preserve ScriptDefDic("scripts")(ScriptDefDic("scripts").Length)
-                    ScriptDefDic("scripts")(ScriptDefDic("scripts").Length - 1) = defval
-                    ReDim Preserve ScriptDefDic("scriptspaths")(ScriptDefDic("scriptspaths").Length)
-                    ScriptDefDic("scriptspaths")(ScriptDefDic("scriptspaths").Length - 1) = deffilepath
-                    ReDim Preserve ScriptDefDic("skipscripts")(ScriptDefDic("skipscripts").Length)
-                    ScriptDefDic("skipscripts")(ScriptDefDic("skipscripts").Length - 1) = False
                 ElseIf deftype = "dir" Then
                     dirglobal = defval
                 ElseIf deftype <> "" Then
@@ -332,7 +325,8 @@ Public Module ScriptAddin
     Private Function prepareParam(index As Integer, name As String, ByRef ScriptDataRange As Range, ByRef returnName As String, ByRef returnPath As String, ext As String) As String
         Dim value As String = ScriptDefDic(name)(index)
         If value = "" Then Return "Empty definition value for parameter " + name + ", index: " + index.ToString()
-
+        ' allow for other extensions than txt if defined in ScriptDefDic(name)(index)
+        If InStr(value, ".") > 0 Then ext = ""
         ' only for args, results and diags (scripts dont have a target range)
         Dim ScriptDataRangeAddress As String = ""
         If name = "args" Or name = "results" Or name = "diags" Or name = "scriptrng" Then
@@ -482,6 +476,7 @@ Public Module ScriptAddin
 
     Public fullScriptPath As String
     Public script As String
+    Public scriptarguments As String
     Public previousDir As String
     Public theScriptOutput As ScriptOutput
 
@@ -503,6 +498,13 @@ Public Module ScriptAddin
                              ' allow to ignore preparation errors...
                              If Not ScriptAddin.UserMsg(ErrMsg) Then Exit For
                              ErrMsg = ""
+                         End If
+
+                         ' a blank separator indicates additional arguments, separate argument passing because of possible blanks in path -> need quotes around path + scriptname
+                         ' assumption: scriptname itself may not have blanks in it.
+                         If InStr(script, " ") > 0 Then
+                             scriptarguments = script.Substring(InStr(script, " "))
+                             script = script.Substring(0, InStr(script, " ") - 1)
                          End If
 
                          ' absolute paths begin with \\ or X:\ -> dont prefix with currWB path, else currWBpath\scriptpath
@@ -679,6 +681,10 @@ Public Module ScriptAddin
             ' absolute paths begin with \\ or X:\ -> dont prefix with currWB path, else currWBpath\scriptpath
             Dim curWbPrefix As String = IIf(Left(readdir, 2) = "\\" Or Mid(readdir, 2, 2) = ":\", "", currWb.Path + "\")
             Dim fullScriptPath = curWbPrefix + readdir
+
+            ' a blank separator indicates additional arguments, separate argument passing because of possible blanks in path -> need quotes around path + scriptname
+            ' assumption: scriptname itself may not have blanks in it.
+            If InStr(script, " ") > 0 Then script = script.Substring(0, InStr(script, " "))
             If Not File.Exists(fullScriptPath + "\" + script) Then
                 ScriptAddin.UserMsg("Script '" + fullScriptPath + "\" + script + "' not found!" + vbCrLf, True, True)
                 Return False
@@ -889,7 +895,7 @@ Public Module ScriptAddin
     ''' <param name="questionTitle">optionally pass a title for the msgbox instead of default DBAddin Question</param>
     ''' <param name="msgboxIcon">optionally pass a different Msgbox icon (style) instead of default MsgBoxStyle.Question</param>
     ''' <returns>choice as MsgBoxResult (Yes, No, OK, Cancel...)</returns>
-    Public Function QuestionMsg(theMessage As String, Optional questionType As MsgBoxStyle = MsgBoxStyle.OkCancel, Optional questionTitle As String = "DBAddin Question", Optional msgboxIcon As MsgBoxStyle = MsgBoxStyle.Question) As MsgBoxResult
+    Public Function QuestionMsg(theMessage As String, Optional questionType As MsgBoxStyle = MsgBoxStyle.OkCancel, Optional questionTitle As String = "ScriptAddin Question", Optional msgboxIcon As MsgBoxStyle = MsgBoxStyle.Question) As MsgBoxResult
         Dim theMethod As Object = (New System.Diagnostics.StackTrace).GetFrame(1).GetMethod
         Dim caller As String = theMethod.ReflectedType.FullName + "." + theMethod.Name
         WriteToLog(theMessage, If(msgboxIcon = MsgBoxStyle.Critical Or msgboxIcon = MsgBoxStyle.Exclamation, EventLogEntryType.Warning, EventLogEntryType.Information), caller) ' to avoid popup of trace log
@@ -967,6 +973,38 @@ Public Module ScriptAddin
                 If Left(key, 7) = "ExePath" Then ScriptExecutables.Add(key.Substring(7))
             Next
         End If
+    End Sub
+
+    Public Sub insertScriptExample()
+        If QuestionMsg("Inserting Example Script definition starting in current cell, overwriting 8 rows and 3 columns with example definitions!") = MsgBoxResult.Cancel Then Exit Sub
+        Dim curCell As Range = ExcelDnaUtil.Application.ActiveCell
+        curCell.Value = "Dir"
+        curCell.Offset(0, 1).Value = "."
+        curCell.Offset(1, 0).Value = "Type"
+        curCell.Offset(1, 1).Value = "R"
+        curCell.Offset(2, 0).Value = "script"
+        curCell.Offset(2, 1).Value = "yourScript.R"
+        curCell.Offset(2, 2).Value = "."
+        curCell.Offset(3, 0).Value = "scriptCell"
+        curCell.Offset(3, 1).Value = "# your script code in this cell"
+        curCell.Offset(3, 2).Value = "."
+        curCell.Offset(4, 0).Value = "scriptRange"
+        curCell.Offset(4, 1).Value = "yourScriptCodeInThisRange"
+        curCell.Offset(4, 2).Value = "."
+        curCell.Offset(5, 0).Value = "arg"
+        curCell.Offset(5, 1).Value = "yourArgInputRange"
+        curCell.Offset(5, 2).Value = "."
+        curCell.Offset(6, 0).Value = "res"
+        curCell.Offset(6, 1).Value = "yourResultOutRange"
+        curCell.Offset(6, 2).Value = "."
+        curCell.Offset(7, 0).Value = "diag"
+        curCell.Offset(7, 1).Value = "yourDiagramPlaceRange"
+        curCell.Offset(7, 2).Value = "."
+        Try
+            ExcelDnaUtil.Application.ActiveSheet.Range(curCell, curCell.Offset(7, 2)).Name = "Script_Example"
+        Catch ex As Exception
+            UserMsg("Couldn't name example definitions as 'Script_Example': " + ex.Message)
+        End Try
     End Sub
 
 End Module

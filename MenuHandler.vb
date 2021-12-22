@@ -29,11 +29,12 @@ Public Class MenuHandler
               "<dropDown id='execDropDown' label='ScriptExecutable:' sizeString='12345678901234' getItemCount='GetItemCountExec' getItemID='GetItemIDExec' getItemLabel='GetItemLabelExec' getSelectedItemIndex='GetSelectedExec' onAction='selectItemExec'/>" +
               "<buttonGroup id='butGrp'>" +
                 "<menu id='configMenu' label='Settings'>" +
+                  "<button id='insExample' label='insert Example' tag='5' screentip='insert an Example Script Range' imageMso='SignatureLineInsert' onAction='insertExample'/>" +
                   "<button id='user' label='User settings' onAction='showAddinConfig' imageMso='ControlProperties' screentip='Show/edit user settings for Script Addin' />" +
                   "<button id='central' label='Central settings' onAction='showAddinConfig' imageMso='TablePropertiesDialog' screentip='Show/edit central settings for Script Addin' />" +
                   "<button id='addin' label='ScriptAddin settings' onAction='showAddinConfig' imageMso='ServerProperties' screentip='Show/edit standard Addin settings for Script Addin' />" +
                 "</menu>" +
-                "<toggleButton id='debug' label='debug script' onAction='toggleButton' getImage='getImage' getPressed='getPressed' tag='3' screentip='toggles script output window visibility' supertip='for debugging you can display the script output' />" +
+                "<toggleButton id='debug' label='script output win' onAction='toggleButton' getImage='getImage' getPressed='getPressed' tag='3' screentip='toggles script output window visibility' supertip='for debugging you can display the script output' />" +
                 "<button id='showLog' label='Log' tag='4' screentip='shows Scriptaddins Diagnostic Display' getImage='getLogsImage' onAction='clickShowLog'/>" +
               "</buttonGroup>" +
             "<dialogBoxLauncher><button id='dialog' label='About Scriptaddin' onAction='refreshScriptDefs' tag='5' screentip='Show Aboutbox (and refresh ScriptDefinitions from current Workbook from there)'/></dialogBoxLauncher></group>" +
@@ -219,6 +220,13 @@ Public Class MenuHandler
             Return "MailMergeStartLetters"
         End If
     End Function
+
+    ''' <summary>insert an Script_Example</summary>
+    ''' <param name="control"></param>
+    Public Sub insertExample(control As IRibbonControl)
+        ScriptAddin.insertScriptExample()
+    End Sub
+
 
     ''' <summary>show the trace log</summary>
     ''' <param name="control"></param>

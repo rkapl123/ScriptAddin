@@ -135,15 +135,16 @@ Partial Class AboutBox1
         Me.TableLayoutPanel.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle())
         Me.TableLayoutPanel.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle())
         Me.TableLayoutPanel.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle())
+        Me.TableLayoutPanel.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20.0!))
         Me.TableLayoutPanel.Controls.Add(Me.LogoPictureBox, 0, 0)
         Me.TableLayoutPanel.Controls.Add(Me.LabelProductName, 1, 0)
         Me.TableLayoutPanel.Controls.Add(Me.LabelVersion, 1, 1)
         Me.TableLayoutPanel.Controls.Add(Me.LabelCopyright, 1, 2)
         Me.TableLayoutPanel.Controls.Add(Me.LabelCompanyName, 1, 3)
         Me.TableLayoutPanel.Controls.Add(Me.TextBoxDescription, 1, 4)
-        Me.TableLayoutPanel.Controls.Add(Me.OKButton, 3, 5)
         Me.TableLayoutPanel.Controls.Add(Me.refreshScriptDef, 2, 5)
         Me.TableLayoutPanel.Controls.Add(Me.CheckForUpdates, 1, 5)
+        Me.TableLayoutPanel.Controls.Add(Me.OKButton, 3, 5)
         Me.TableLayoutPanel.Dock = System.Windows.Forms.DockStyle.Fill
         Me.TableLayoutPanel.Location = New System.Drawing.Point(9, 9)
         Me.TableLayoutPanel.Name = "TableLayoutPanel"
@@ -162,7 +163,7 @@ Partial Class AboutBox1
         Me.refreshScriptDef.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.refreshScriptDef.Location = New System.Drawing.Point(209, 248)
         Me.refreshScriptDef.Name = "refreshScriptDef"
-        Me.refreshScriptDef.Size = New System.Drawing.Size(133, 23)
+        Me.refreshScriptDef.Size = New System.Drawing.Size(139, 23)
         Me.refreshScriptDef.TabIndex = 1
         Me.refreshScriptDef.Text = "refresh ScriptDefinitions"
         Me.refreshScriptDef.UseVisualStyleBackColor = True

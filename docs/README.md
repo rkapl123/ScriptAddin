@@ -3,7 +3,7 @@ Script Addin provides an easy way to define and run script interactions started 
 # Using ScriptAddin
 
 Running an script is simply done by selecting the desired executable (R, Python, Perl, whatever was defined) on the dropdown "ScriptExecutable" in the Script Addin Ribbon Tab and clicking "run <ScriptDefinition>"
-beneath the Sheet-button in the Ribbon group "Run Scripts defined in WB/sheets names". Activating the "debug script" toggle button opens the script output.
+beneath the Sheet-button in the Ribbon group "Run Scripts defined in WB/sheets names". With an activated "script output win" toggle button the script output is shown in an opened window.
 Selecting the Script definition in the ScriptDefinition dropdown highlights the specified definition range.
 
 When running scripts, following is executed:
@@ -43,11 +43,11 @@ In the 1st column of the Scriptdefinition range are the definition types, possib
 - `exec` (or `rexec` as a legacy compatibility with the old R Addin): an executable, being able to run the script in line "script". This is only needed for overriding the `ExePath<ScriptType>` in the AppSettings in the ScriptAddin.xll.config file.
 - `path`: path to folders with dlls/executables (semicolon separated), in case you need to add them. Only needed when overriding the `PathAdd<ScriptType>` in the AppSettings in the ScriptAddin.xll.config file.
 - `dir`: the path where below files (scripts, args, results and diagrams) are stored.
-- `script`: full path of an executable script.
-- `arg` (input objects, txt files): variable name and path/filename, where the (input) arguments are stored.
-- `res`/`rres` (output objects, txt files): variable name and path/filename, where the (output) results are expected. If the definition type is rres, results are removed from excel before saving and rerunning the script
-- `diag` (output diagrams, png format): path/filename, where (output) diagrams are expected.
-- `scriptrng`/`scriptcell` (Scripts directly within Excel): either ranges, where a script is stored (scriptrng) or directly as a cell value (text content or formula result) in the 2nd column (scriptcell)
+- `script` or `skipscript`: full path of an executable script. In case the parameter is `skipscript` then the script execution is skipped (set this dynamically to prevent scripts from running).
+- `arg` (input objects, by default these are .txt files): range name and path/filename, where the (input) arguments are stored.
+- `res`/`rres` (output objects, by default these are .txt files): range name and path/filename, where the (output) results are expected. If the definition type is rres, results are removed from excel before saving and rerunning the script
+- `diag` (output diagrams, should be png format): range name and path/filename, where (output) diagrams are expected.
+- `scriptrng`/`scriptcell` or `skipscript` (Scripts directly within Excel): either ranges, where a script is stored (scriptrng) or directly as a cell value (text content or formula result) in the 2nd column (scriptcell). In case the parameter is `skipscript` then the script execution is skipped (set this dynamically to prevent scripts from running).
 
 Scripts (defined with the `script`, `scriptrng` or `scriptcell` definition types) are executed in sequence of their appearance. Although exec, path and dir definitions can appear more than once, only the last definition is used.
 
@@ -55,7 +55,7 @@ Instead of `script`, `scriptrng` and `scriptcell` there can also be given `skips
 
 In the 2nd column are the definition values as described above.
 - For `arg`, `res`, `scriptrng` and `diag` these are range names referring to the respective ranges to be taken as arg, res, scriptrng or diag target in the excel workbook.
-- The range names that are referred in `arg`, `res`, `scriptrng` and `diag` types can also be either workbook global (having no ! in front of the name) or worksheet local (having the worksheet name + ! in front of the name)
+- The range names that are referred in `arg`, `res`, `scriptrng` and `diag` types can also be either workbook global (having no ! in front of the name) or worksheet local (having the worksheet name + ! in front of the name). They act at the same time as the filename for the input/output arguments and diagram files. So they can also contain extensions, in this case, the default extension `.txt` is not added. However for diag files, the content always has to be png format.
 - for `exec` this can either be the full path for the executable, or - in case the executable is already in the windows default path - a simple filename (like cmd.exe or perl.exe). This overrides the standard setting `ExePath<ScriptType>`.
 - for `type` any ScriptType available in the dropdown "ScriptExecutable". This overrides the selection in the dropdown "ScriptExecutable".
 - for `path`, an additional path to folders with dlls/executables (semicolon separated), in case you need to add them. This overrides the standard setting `PathAdd<ScriptType>`.
@@ -82,6 +82,8 @@ You can also run ScriptAddin in an automated way, simply issue the VBA command `
 Known Issues/Enhancements:
 
 - [ ] Implement a faster way to save textfiles from excel
+- Output redirected to the script output window is usually block buffered, so for more interactivity enable any buffer flushing (e.g. in Perl done with `$| = 1;`). Buffer flushing however only works if newlines are printed, so output is still not seen until `\n`!
+- [ ] Input in the script output window is returning ALL key char values, so `my $val = <STDIN>;` with user input of `a<BackSPC>b` will yield `a<BkSpc>b` in `$val` instead of `b`.
 
 # Installation of ScriptAddin and Settings
 
@@ -100,7 +102,7 @@ Adapt the settings in ScriptAddin.xll.config:
     <add key="LocalHelp" value="C:\YourPathToLocalHelp\LocalHelp.htm" /> : If you download this page to your local site, put it there.
     <add key="ExePathR" value="C:\Program Files\R\R-4.0.4\bin\x64\Rscript.exe" /> : The Executable Path used for R
     <add key="FSuffixR" value=".R" /> : The File suffix used when writing temporary Files used in scriptrng/scriptcell for R
-    <add key="StdErrXR" value="False" /> : Shall any output to standard err by R be regarded as an error that blocks further processing (default: True) 
+    <add key="StdErrXR" value="False" /> : Shall any output to standard err by R be regarded as an error that blocks further processing (default: True)
     <add key="ExePathPerl" value="C:\Strawberry\perl\bin\perl.exe" />
     <add key="PathAddPerl" value="C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin" /> : Additional Path Setting for Perl
     <add key="FSuffixPerl" value=".pl" />
@@ -109,7 +111,7 @@ Adapt the settings in ScriptAddin.xll.config:
     <add key="FSuffixPython" value=".py" />
     <add key="ExePathWinCmd" value="C:\Windows\System32\cmd.exe" />
     <add key="ExeArgsWinCmd" value="/C" /> : Any additional arguments to the script executable
-    <add key="FSuffixWinCmd" value=".cmd" /> 
+    <add key="FSuffixWinCmd" value=".cmd" />
     <add key="ExePathCscript" value="C:\Windows\System32\cscript.exe" />
     <add key="FSuffixCscript" value=".js" />
     <add key="presetSheetButtonsCount" value="24"/> : the preset maximum Button Count for Sheets (if you expect more sheets with ScriptDefinitions, you can set it accordingly)
@@ -137,10 +139,14 @@ Following ScriptExecPrefixes are possible:
 - ExePath: The Executable Path used for the ScriptType
 - PathAdd : Additional Path Setting for the ScriptType
 - FSuffix : The File suffix used when writing temporary Files used in scriptrng/scriptcell (Scripts directly within Excel), sometimes important to the script engine (e.g. cscript makes a difference between .vbs and .js)
-- StdErrX : Shall any output to standard error by the ScriptType engine be regarded as an error that blocks further processing (default: True) 
+- StdErrX : Shall any output to standard error by the ScriptType engine be regarded as an error that blocks further processing (default: True)
 - ExeArgs : Any additional arguments to the ScriptType executable
 
 The minimum requirement for a scripting engine to be regarded as selectable/usable is the ExePath entry. All other ScriptExecPrefixes are optional depending on the requirement of the scripting engine.
+
+There are three settings files which can be used to create a central setting repository (`<appSettings file="your.Central.Configfile.Path">`) along with a user specific overriding mechanism (`<UserSettings configSource="ScriptAddinUser.config"/>`) defined in the application config file ScriptAddin.xll.config. All three settings files can be accessed in the ribbon bar beneaht the dropdown `Settings`.
+
+Additionally you can find an `insert Example` mechanism in this dropdown that adds an example script definition range with the above described definition types and example configs.
 
 # Building
 
