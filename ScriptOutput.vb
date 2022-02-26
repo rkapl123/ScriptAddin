@@ -43,7 +43,7 @@ Public Class ScriptOutput
             cmd.BeginOutputReadLine()
             cmd.BeginErrorReadLine()
         Catch ex As Exception
-            ScriptAddin.UserMsg("Error occured when invoking script '" + ScriptAddin.fullScriptPath + "\" + ScriptAddin.script + "', using '" + ScriptAddin.ScriptExec + "'" + ex.Message + vbCrLf, True, True)
+            ScriptAddin.UserMsg("Error occurred when invoking script '" + ScriptAddin.fullScriptPath + "\" + ScriptAddin.script + "', using '" + ScriptAddin.ScriptExec + "'" + ex.Message + vbCrLf, True, True)
             Me.errMsg = ex.Message
         End Try
 

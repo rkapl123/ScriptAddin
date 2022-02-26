@@ -73,7 +73,7 @@ Public Class MenuHandler
         theRibbon.Invalidate()
     End Sub
 
-    ''' <summary>after clicking on the script dropdown button, the defined script definition is started</summary>
+    ''' <summary>after clicking on the script drop down button, the defined script definition is started</summary>
     Public Sub startScript(control As IRibbonControl)
         Dim errStr As String
         ' set ScriptDefinition to invocaters range... invocating sheet is put into Tag
@@ -89,7 +89,7 @@ Public Class MenuHandler
         If errStr <> "" Then ScriptAddin.UserMsg(errStr, True, True)
     End Sub
 
-    ''' <summary>reflect the change in the togglebuttons title</summary>
+    ''' <summary>reflect the change in the toggle buttons title</summary>
     ''' <returns></returns>
     Public Function getImage(control As IRibbonControl) As String
         If ScriptAddin.debugScript And control.Id = "debug" Then
@@ -99,7 +99,7 @@ Public Class MenuHandler
         End If
     End Function
 
-    ''' <summary>reflect the change in the togglebuttons title</summary>
+    ''' <summary>reflect the change in the toggle buttons title</summary>
     ''' <returns>True for the respective control if activated</returns>
     Public Function getPressed(control As IRibbonControl) As Boolean
         If control.Id = "debug" Then
@@ -124,7 +124,7 @@ Public Class MenuHandler
                     ScriptAddin.theScriptOutput.Opacity = 0.0
                 End If
             End If
-            ' invalidate to reflect the change in the togglebuttons image
+            ' invalidate to reflect the change in the toggle buttons image
             ScriptAddin.theRibbon.InvalidateControl(control.Id)
         End If
     End Sub

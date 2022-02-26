@@ -3,12 +3,12 @@ Imports System.Windows.Forms
 Imports System.IO
 Imports System.Diagnostics
 
-''' <summary>Dialog used to display and edit the the three parts of ScriptAddin settings (Addin level, user and central)</summary>
+''' <summary>Dialog used to display and edit the three parts of ScriptAddin settings (Addin level, user and central)</summary>
 Public Class EditSettings
-    ''' <summary>the settings path for user or central setting (for resaving after modification)</summary>
+    ''' <summary>the settings path for user or central setting (for re-saving after modification)</summary>
     Private settingsPath As String = ""
 
-    ''' <summary>put the costom xml definition in the edit box for display/editing</summary>
+    ''' <summary>put the custom xml definition in the edit box for display/editing</summary>
     ''' <param name="sender"></param>
     ''' <param name="e"></param>
     Private Sub EditSettings_Shown(sender As Object, e As EventArgs) Handles Me.Shown
@@ -40,14 +40,14 @@ Public Class EditSettings
             doc.LoadXml(settingsStr)
             If Not IsNothing(doc.SelectSingleNode(xpathStr)) Then
                 Dim settingfilename As String = doc.SelectSingleNode(xpathStr).Value
-                ' no path given in centralfilename: assume it is in same directory
+                ' no path given in central filename: assume it is in same directory
                 If InStr(settingfilename, "\") = 0 Then settingfilename = Replace(settingsPath, "ScriptAddin.xll.config", "") + settingfilename
                 ' and read central settings
                 settingsPath = settingfilename
                 Try
                     settingsStr = File.ReadAllText(settingsPath, System.Text.Encoding.Default)
                 Catch ex As Exception
-                    ScriptAddin.UserMsg("Couldn't read Script Addin " + Me.Tag + " settings from " + settingsPath + ":" + ex.Message, True, True)
+                    ScriptAddin.UserMsg("Couldn't read Script Add-in " + Me.Tag + " settings from " + settingsPath + ":" + ex.Message, True, True)
                     Exit Sub
                 End Try
                 Me.Text = Me.Tag + " settings in " + settingsPath
@@ -61,11 +61,11 @@ Public Class EditSettings
         Me.EditBox.Text = settingsStr
     End Sub
 
-    ''' <summary>store the displayed/edited textbox content back into the custom xml definition, indluding validation feedback</summary>
+    ''' <summary>store the displayed/edited text box content back into the custom xml definition, including validation feedback</summary>
     ''' <param name="sender"></param>
     ''' <param name="e"></param>
     Private Sub OKBtn_Click(sender As Object, e As EventArgs) Handles OKBtn.Click
-        ' save Addin, users or central settings...
+        ' save Add-in, users or central settings...
         Dim doc As New XmlDocument()
         Try
             ' validate settings

@@ -71,10 +71,10 @@ Public NotInheritable Class AboutBox1
             End If
         End If
     End Sub
+
     Private Sub CheckForUpdates_Click(sender As Object, e As EventArgs) Handles CheckForUpdates.Click
         checkForUpdate(True)
     End Sub
-
 
     ''' <summary>checks for updates of DB-Addin, asks for download and downloads them</summary>
     ''' <param name="doUpdate">only display result of check (false) or actually perform the update and download new version (true)</param>
