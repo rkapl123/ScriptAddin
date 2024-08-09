@@ -19,6 +19,8 @@ Public Module ScriptAddin
     Public ScriptExecArgs As String
     ''' <summary>optional additional path settings for ScriptExec</summary>
     Public ScriptExecAddPath As String
+    ''' <summary>optional additional environment settings for ScriptExec</summary>
+    Public ScriptExecAddEnvironVars As Dictionary(Of String, String)
     ''' <summary>If Script engine writes to StdError, regard this as an error for further processing (some write to StdError in case of no error)</summary>
     Public StdErrMeansError As Boolean
     ''' <summary>for ScriptAddin invocations by executeScript, this is set to true, avoiding a MsgBox</summary>
@@ -71,6 +73,7 @@ Public Module ScriptAddin
     Public Function startScriptprocess() As String
         Dim errStr As String
         avoidFurtherMsgBoxes = False
+        ScriptExecAddEnvironVars = New Dictionary(Of String, String)
         ' get the definition range
         errStr = getScriptDefinitions()
         If errStr <> vbNullString Then Return "Failed getting ScriptDefinitions: " + errStr
@@ -252,6 +255,10 @@ Public Module ScriptAddin
                         ScriptExecAddPath = defval
                         ScriptFileSuffix = deffilepath
                     End If
+                ElseIf deftype = "envvar" And defval <> "" Then
+                    If defval <> "" Then
+                        ScriptExecAddEnvironVars(defval) = deffilepath
+                    End If
                 ElseIf deftype = "type" Then
                     If ScriptExecutables.Contains(defval) Then
                         ScriptType = defval
@@ -293,6 +300,11 @@ Public Module ScriptAddin
             ' get default ScriptExec path from user (or overridden in appSettings tag as redirect to global) settings. This can be overruled by individual script exec settings in ScriptDefinitions
             If ScriptExec Is Nothing Then ScriptExec = fetchSetting("ExePath" + ScriptType, "")
             If ScriptExecAddPath = "" Then ScriptExecAddPath = fetchSetting("PathAdd" + ScriptType, "")
+            If fetchSetting("EnvironVarName" + ScriptType, "") <> "" Then
+                If Not ScriptExecAddEnvironVars.ContainsKey(fetchSetting("EnvironVarName" + ScriptType, "")) Then
+                    ScriptExecAddEnvironVars(fetchSetting("EnvironVarName" + ScriptType, "")) = fetchSetting("EnvironVarValue" + ScriptType, "")
+                End If
+            End If
             If ScriptFileSuffix = "" Then ScriptFileSuffix = fetchSetting("FSuffix" + ScriptType, "")
             If ScriptExecArgs = "" Then ScriptExecArgs = fetchSetting("ExeArgs" + ScriptType, "")
             If ScriptExec = "" Then Return "Error in getScriptDefinitions: ScriptExec not defined (check AppSettings for available ExePath<> entries)"

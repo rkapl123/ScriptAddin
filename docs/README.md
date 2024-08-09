@@ -42,6 +42,7 @@ In the 1st column of the Scriptdefinition range are the definition types, possib
 - `type`: the script type to be used.
 - `exec` (or `rexec` as a legacy compatibility with the old R Addin): an executable, being able to run the script in line "script". This is only needed for overriding the `ExePath<ScriptType>` in the AppSettings in the ScriptAddin.xll.config file.
 - `path`: path to folders with dlls/executables (semicolon separated), in case you need to add them. Only needed when overriding the `PathAdd<ScriptType>` in the AppSettings in the ScriptAddin.xll.config file.
+- `envvar`: environment variables to add to the process (each line will be one variable/value entry). Only needed when overriding `EnvironVarName<ScriptType>`/`EnvironVarValue<ScriptType>` settings in the AppSettings in the ScriptAddin.xll.config file.
 - `dir`: the path where below files (scripts, args, results and diagrams) are stored.
 - `script` or `skipscript`: full path of an executable script. In case the parameter is `skipscript` then the script execution is skipped (set this dynamically to prevent scripts from running).
 - `arg` (input objects, by default these are .txt files): range name and path/filename, where the (input) arguments are stored.
@@ -59,6 +60,7 @@ In the 2nd column are the definition values as described above.
 - for `exec` this can either be the full path for the executable, or - in case the executable is already in the windows default path - a simple filename (like cmd.exe or perl.exe). This overrides the standard setting `ExePath<ScriptType>`.
 - for `type` any ScriptType available in the dropdown "ScriptExecutable". This overrides the selection in the dropdown "ScriptExecutable".
 - for `path`, an additional path to folders with dlls/executables (semicolon separated), in case you need to add them. This overrides the standard setting `PathAdd<ScriptType>`.
+- for `envvar`, the name of the environment variable to be added. This overrides the potential standard setting `EnvironVarName<ScriptType>`/`EnvironVarValue<ScriptType>`.
 - for `dir` a path that overrides the current workbook folder.
 
 In the 3rd column are the definition paths of the files referred to in arg, res and diag
@@ -66,6 +68,7 @@ In the 3rd column are the definition paths of the files referred to in arg, res 
 - parent folders for `arg`, `res`, `scriptrng`/`scriptcell` and `diag` entries. Not existing folders are created automatically, so dynamical paths can be given here.
 - for `exec`, additional commandline switches can be passed here to the executable (like "/c" for cmd.exe, this is required to start a subsequent script). This overrides the standard setting `ExeArgs<ScriptType>`
 - for `path`, the default file suffix for the script files can be given here (".R", ".pl", ".py"...). This overrides the standard setting `FSuffix<ScriptType>`.
+- for `envvar`, the value of the environment variable to be added.
 - for `type` a value of `n` or `no` (case insensitive) can be used to disregard any output to standard err by the script engine as an error. This overrides the standard setting `StdErrX<ScriptType>`
 
 The definitions are loaded into the ScriptDefinition dropdown either on opening/activating a Workbook with above named areas or by pressing the small dialogBoxLauncher "Show AboutBox" on the Script Addin Ribbon Tab and clicking "refresh ScriptDefinitions":  
@@ -106,6 +109,8 @@ Adapt the settings in ScriptAddin.xll.config:
     <add key="ExePathPerl" value="C:\Strawberry\perl\bin\perl.exe" />
     <add key="PathAddPerl" value="C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin" /> : Additional Path Setting for Perl
     <add key="FSuffixPerl" value=".pl" />
+    <add key="EnvironVarNamePerl" value="PERL5LIB" />
+    <add key="EnvironVarValuePerl" value="C:\Users\rolan\specialLib" />
     <add key="ExePathPython" value="C:\Users\rolan\anaconda3\pythonw.exe" />
     <add key="PathAddPython" value="C:\Users\rolan\anaconda3\Scripts;C:\Users\rolan\anaconda3\Library\bin;C:\Users\rolan\anaconda3\Library\bin;C:\Users\rolan\anaconda3\Library\usr\bin;C:\Users\rolan\anaconda3\Library\mingw-w64\bin" />
     <add key="FSuffixPython" value=".py" />
@@ -137,6 +142,8 @@ The settings for the scripting executables are structured as follows `<ScriptExe
 
 Following ScriptExecPrefixes are possible:
 - ExePath: The Executable Path used for the ScriptType
+- EnvironVarName: An environment variable name to be added for all processes of ScriptType
+- EnvironVarValue: The value of the above environment variable
 - PathAdd : Additional Path Setting for the ScriptType
 - FSuffix : The File suffix used when writing temporary Files used in scriptrng/scriptcell (Scripts directly within Excel), sometimes important to the script engine (e.g. cscript makes a difference between .vbs and .js)
 - StdErrX : Shall any output to standard error by the ScriptType engine be regarded as an error that blocks further processing (default: True)

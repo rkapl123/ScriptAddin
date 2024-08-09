@@ -30,6 +30,9 @@ Public Class ScriptOutput
             }
 
             pstartInfo.EnvironmentVariables.Item("PATH") = pstartInfo.EnvironmentVariables.Item("PATH") + ";" + ScriptAddin.ScriptExecAddPath
+            For Each varKey As String In ScriptAddin.ScriptExecAddEnvironVars.Keys
+                pstartInfo.EnvironmentVariables.Item(varKey) = ScriptAddin.ScriptExecAddEnvironVars(varKey)
+            Next
 
             cmd = New Process With {
                 .StartInfo = pstartInfo,
