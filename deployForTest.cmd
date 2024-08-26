@@ -1,6 +1,10 @@
 @echo off
 Set /P answr=deploy (r)elease (empty for debug)? 
 set source=bin\Debug
+If "%answr%"=="r" (
+	set source=bin\Release
+)
+echo copying from %source%
 if exist "C:\Program Files\Microsoft Office\root\" (
 	echo 64bit office
 	copy /Y %source%\ScriptAddin-AddIn64-packed.xll "%appdata%\Microsoft\AddIns\ScriptAddin.xll"

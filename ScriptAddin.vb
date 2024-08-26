@@ -20,7 +20,7 @@ Public Module ScriptAddin
     ''' <summary>optional additional path settings for ScriptExec</summary>
     Public ScriptExecAddPath As String
     ''' <summary>optional additional environment settings for ScriptExec</summary>
-    Public ScriptExecAddEnvironVars As Dictionary(Of String, String)
+    Public ScriptExecAddEnvironVars As Dictionary(Of String, String) = New Dictionary(Of String, String)
     ''' <summary>If Script engine writes to StdError, regard this as an error for further processing (some write to StdError in case of no error)</summary>
     Public StdErrMeansError As Boolean
     ''' <summary>for ScriptAddin invocations by executeScript, this is set to true, avoiding a MsgBox</summary>
@@ -73,7 +73,6 @@ Public Module ScriptAddin
     Public Function startScriptprocess() As String
         Dim errStr As String
         avoidFurtherMsgBoxes = False
-        ScriptExecAddEnvironVars = New Dictionary(Of String, String)
         ' get the definition range
         errStr = getScriptDefinitions()
         If errStr <> vbNullString Then Return "Failed getting ScriptDefinitions: " + errStr
@@ -988,35 +987,60 @@ Public Module ScriptAddin
     End Sub
 
     Public Sub insertScriptExample()
-        If QuestionMsg("Inserting Example Script definition starting in current cell, overwriting 8 rows and 3 columns with example definitions!") = MsgBoxResult.Cancel Then Exit Sub
+        If QuestionMsg("Inserting Example Script definition starting in current cell, overwriting 14 rows and 3 columns with example definitions!") = MsgBoxResult.Cancel Then Exit Sub
+        Dim retval As String = InputBox("Please provide a range name:", "Range name for the example (empty name exits this)")
+        If retval = "" Then
+            Exit Sub
+        Else
+            retval = "Script_" + retval
+        End If
         Dim curCell As Range = ExcelDnaUtil.Application.ActiveCell
         curCell.Value = "Dir"
         curCell.Offset(0, 1).Value = "."
         curCell.Offset(1, 0).Value = "Type"
         curCell.Offset(1, 1).Value = "R"
+        curCell.Offset(1, 2).Value = "n"
         curCell.Offset(2, 0).Value = "script"
         curCell.Offset(2, 1).Value = "yourScript.R"
-        curCell.Offset(2, 2).Value = "."
+        curCell.Offset(2, 2).Value = "subfolder\from\Workbook\dir\where\yourScript.R\Is\located"
         curCell.Offset(3, 0).Value = "scriptCell"
-        curCell.Offset(3, 1).Value = "# your script code in this cell"
-        curCell.Offset(3, 2).Value = "."
+        curCell.Offset(3, 1).Value = "# your script code In this cell"
+        curCell.Offset(3, 2).Value = "subfolder\from\Workbook\dir\where\tempfile\For\scriptCell\Is\written"
         curCell.Offset(4, 0).Value = "scriptRng"
         curCell.Offset(4, 1).Value = "yourScriptCodeInThisRange"
         curCell.Offset(4, 2).Value = "."
         curCell.Offset(5, 0).Value = "arg"
         curCell.Offset(5, 1).Value = "yourArgInputRange"
-        curCell.Offset(5, 2).Value = "."
+        curCell.Offset(5, 2).Value = "subfolder\from\Workbook\dir\where\tempfile\For\arg\Is\written"
         curCell.Offset(6, 0).Value = "res"
         curCell.Offset(6, 1).Value = "yourResultOutRange"
-        curCell.Offset(6, 2).Value = "."
-        curCell.Offset(7, 0).Value = "diag"
-        curCell.Offset(7, 1).Value = "yourDiagramPlaceRange"
+        curCell.Offset(6, 2).Value = "subfolder\from\Workbook\dir\where\tempfile\For\res\Is\expected"
+        curCell.Offset(7, 0).Value = "rres"
+        curCell.Offset(7, 1).Value = "yourResultOutRangeBeingRemovedInExcelBeforeRunningScript"
         curCell.Offset(7, 2).Value = "."
+        curCell.Offset(8, 0).Value = "diag"
+        curCell.Offset(8, 1).Value = "yourDiagramPlaceRange"
+        curCell.Offset(8, 2).Value = "subfolder\from\Workbook\dir\where\tempfile\For\diag\Is\expected"
+        curCell.Offset(9, 0).Value = "path"
+        curCell.Offset(9, 1).Value = "your\additional\folder\To\add\To\the\path"
+        curCell.Offset(9, 2).Value = ".R"
+        curCell.Offset(10, 0).Value = "envvar"
+        curCell.Offset(10, 1).Value = "yourEnvironmentVar1"
+        curCell.Offset(10, 2).Value = "yourEnvironmentVar1Value"
+        curCell.Offset(11, 0).Value = "envvar"
+        curCell.Offset(11, 1).Value = "yourEnvironmentVar2"
+        curCell.Offset(11, 2).Value = "yourEnvironmentVar2Value"
+        curCell.Offset(12, 0).Value = "dir"
+        curCell.Offset(12, 1).Value = "your\scriptfiles\directory\overriding\the\current\workbook\folder"
+        curCell.Offset(13, 0).Value = "exec"
+        curCell.Offset(13, 1).Value = "yourOwnOverridingExecutable.exe"
+        curCell.Offset(13, 2).Value = "/someSwitchForTheOverridingExecutable"
         Try
-            ExcelDnaUtil.Application.ActiveSheet.Range(curCell, curCell.Offset(7, 2)).Name = "Script_Example"
+            ExcelDnaUtil.Application.ActiveSheet.Range(curCell, curCell.Offset(13, 2)).Name = retval
         Catch ex As Exception
-            UserMsg("Couldn't name example definitions as 'Script_Example': " + ex.Message)
+            UserMsg("Couldn't name example definitions as '" + retval + "': " + ex.Message)
         End Try
+        ExcelDnaUtil.Application.ActiveSheet.Range(curCell, curCell.Offset(0, 2)).EntireColumn.AutoFit
         ScriptAddin.initScriptExecutables()
         Dim errStr As String = ScriptAddin.startScriptNamesRefresh()
         If Len(errStr) > 0 Then ScriptAddin.UserMsg("refresh Error: " & errStr, True, True)
