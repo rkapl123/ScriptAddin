@@ -2,8 +2,10 @@
 Imports Microsoft.Office.Interop.Excel
 Imports System.Diagnostics
 Imports System.Collections.Generic
+Imports System.Runtime.InteropServices
 
 ''' <summary>Events from Addin (AutoOpen/Close) and Excel (Workbook_Save ...)</summary>
+<ComVisible(True)>
 Public Class AddInEvents
     Implements IExcelAddIn
 
@@ -14,9 +16,12 @@ Public Class AddInEvents
     Public Sub AutoOpen() Implements IExcelAddIn.AutoOpen
         Application = ExcelDnaUtil.Application
         theMenuHandler = New MenuHandler
+        ' for finding out what happened attach internal trace to ExcelDNA LogDisplay
+        ScriptAddin.theLogDisplaySource = New TraceSource("ExcelDna.Integration")
+
         initScriptExecutables()
         Dim Wb As Workbook = Application.ActiveWorkbook
-        If Not Wb Is Nothing Then
+        If Wb IsNot Nothing Then
             Dim errStr As String = doDefinitions(Wb)
             ScriptAddin.dropDownSelected = False
             If errStr = "no ScriptAddinNames" Then
@@ -25,7 +30,7 @@ Public Class AddInEvents
                 ScriptAddin.UserMsg("Error when getting definitions in Workbook_Activate: " + errStr, True, True)
             End If
         End If
-        Trace.Listeners.Add(New ExcelDna.Logging.LogDisplayTraceListener())
+
         ' get module info for path of xll (to get config there):
         For Each tModule As Diagnostics.ProcessModule In Diagnostics.Process.GetCurrentProcess().Modules
             ScriptAddin.UserSettingsPath = tModule.FileName

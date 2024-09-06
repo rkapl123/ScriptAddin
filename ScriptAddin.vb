@@ -20,7 +20,7 @@ Public Module ScriptAddin
     ''' <summary>optional additional path settings for ScriptExec</summary>
     Public ScriptExecAddPath As String
     ''' <summary>optional additional environment settings for ScriptExec</summary>
-    Public ScriptExecAddEnvironVars As Dictionary(Of String, String) = New Dictionary(Of String, String)
+    Public ScriptExecAddEnvironVars As New Dictionary(Of String, String)
     ''' <summary>If Script engine writes to StdError, regard this as an error for further processing (some write to StdError in case of no error)</summary>
     Public StdErrMeansError As Boolean
     ''' <summary>for ScriptAddin invocations by executeScript, this is set to true, avoiding a MsgBox</summary>
@@ -35,6 +35,8 @@ Public Module ScriptAddin
     Public SkipScriptAndPreparation As Boolean
     ''' <summary>indicates an error in execution of DBModifiers, used for commit/rollback and for non interactive message return</summary>
     Public hadError As Boolean
+    ''' <summary>the LogDisplay (Diagnostic Display) log source</summary>
+    Public theLogDisplaySource As TraceSource
 
     ''' <summary>the current workbook, used for reference of all script related actions (only one workbook is supported to hold script definitions)</summary>
     Public currWb As Workbook
@@ -64,7 +66,9 @@ Public Module ScriptAddin
     Public WarningIssued As Boolean
 
     ''' <summary>definitions of current script invocations (scripts, args, results, diags...)</summary>
-    Public ScriptDefDic As Dictionary(Of String, String()) = New Dictionary(Of String, String())
+    Public ScriptDefDic As New Dictionary(Of String, String())
+    ''' <summary>currently running scripts to prevent repeated invocations </summary>
+    Public ScriptRunDic As New Dictionary(Of Integer, Boolean)
     ''' <summary>file suffix for currently selected ScriptType</summary>
     Private ScriptFileSuffix As String
 
@@ -185,8 +189,9 @@ Public Module ScriptAddin
                 Dim scriptColl As Dictionary(Of String, Range)
                 If Not ScriptDefsheetColl.ContainsKey(namedrange.Parent.Name) Then
                     ' add to new sheet "menu"
-                    scriptColl = New Dictionary(Of String, Range)
-                    scriptColl.Add(nodeName, namedrange.RefersToRange)
+                    scriptColl = New Dictionary(Of String, Range) From {
+                        {nodeName, namedrange.RefersToRange}
+                    }
                     ScriptDefsheetColl.Add(namedrange.Parent.Name, scriptColl)
                     ScriptDefsheetMap.Add("ID" + i.ToString(), namedrange.Parent.Name)
                     i += 1
@@ -327,7 +332,7 @@ Public Module ScriptAddin
 
     ''' <summary>prepare parameter (script, args, results, diags) for usage in invokeScripts, storeArgs, getResults and getDiags</summary>
     ''' <param name="index">index of parameter to be prepared in ScriptDefDic</param>
-    ''' <param name="name">name (type) of parameter: script, scriptrng, args, results, diags</param>
+    ''' <param name="name">name (type) of parameter: scripts, scriptrng, args, results, diags</param>
     ''' <param name="ScriptDataRange">returned Range of data area for scriptrng, args, results and diags</param>
     ''' <param name="returnName">returned name of data file for the parameter: same as range name</param>
     ''' <param name="returnPath">returned path of data file for the parameter</param>
@@ -497,19 +502,31 @@ Public Module ScriptAddin
         Dim scriptpath As String
         previousDir = Directory.GetCurrentDirectory()
         scriptpath = dirglobal
+        LogInfo("starting " + CStr(ScriptDefDic("scripts").Length - 1) + " scripts")
         ' start script invocation loop as asynchronous thread to allow blocking ShowDialog while not blocking main Excel GUI thread (allows switching the dialog on/off)
         Task.Run(Async Function()
                      Dim ErrMsg As String = ""
+                     ' loop through defined scripts, in case you are wondering about scriptrng definitions, for this the scripts dictionary is reused within the invocation of storeScriptRng...
                      For c As Integer = 0 To ScriptDefDic("scripts").Length - 1
+                         ' initialize ScriptRunDic entries
+                         If Not ScriptRunDic.ContainsKey(c) Then ScriptRunDic.Add(c, False)
                          ' skip script if defined...
                          If ScriptDefDic("skipscripts")(c) Then Continue For
-                         ' in case you are wondering about scriptrng, this reuses the scripts dictionary by adding the saved file to the parameters...
                          ErrMsg = prepareParam(c, "scripts", Nothing, script, scriptpath, "")
                          If Len(ErrMsg) > 0 Then
                              ' allow to ignore preparation errors...
                              If Not ScriptAddin.UserMsg(ErrMsg) Then Exit For
                              ErrMsg = ""
                          End If
+
+                         ' avoid rerunning same script ...
+                         If ScriptRunDic(c) Then
+                             If ScriptAddin.QuestionMsg("Script " + scriptpath + "\" + script + " is already running, start another instance?", MsgBoxStyle.OkCancel, "Script already running", MsgBoxStyle.Exclamation) = MsgBoxResult.Cancel Then Continue For
+                         Else
+                             ScriptRunDic(c) = True
+                         End If
+                         ' reflect running state in debug label...
+                         ScriptAddin.theRibbon.InvalidateControl("debug")
 
                          ' a blank separator indicates additional arguments, separate argument passing because of possible blanks in path -> need quotes around path + scriptname
                          ' assumption: scriptname itself may not have blanks in it.
@@ -521,23 +538,30 @@ Public Module ScriptAddin
                          ' absolute paths begin with \\ or X:\ -> don't prefix with currWB path, else currWBpath\scriptpath
                          Dim curWbPrefix As String = IIf(Left(scriptpath, 2) = "\\" Or Mid(scriptpath, 2, 2) = ":\", "", currWb.Path + "\")
                          fullScriptPath = curWbPrefix + scriptpath
+
                          ' blocking wait for finish of script dialog
                          Await Task.Run(Sub()
                                             theScriptOutput = New ScriptOutput()
                                             If theScriptOutput.errMsg <> "" Then Exit Sub
+                                            theScriptOutput.ShowInTaskbar = False
+                                            theScriptOutput.TopMost = True
                                             ' hide script output if not in debug mode
                                             If Not ScriptAddin.debugScript Then theScriptOutput.Opacity = 0
-                                            theScriptOutput.ShowInTaskbar = True
                                             theScriptOutput.BringToFront()
                                             theScriptOutput.ShowDialog()
                                             ErrMsg = theScriptOutput.errMsg
                                         End Sub)
+
+                         ScriptRunDic(c) = False
+                         ' reflect running state in debug label...
+                         ScriptAddin.theRibbon.InvalidateControl("debug")
                      Next
+
                      ' after all scripts were finished and no ErrMsg from prepareParam or script, continue with result collection
                      If ErrMsg = "" Then
                          ScriptAddin.finishScriptprocess()
                      Else
-                         ScriptAddin.UserMsg("Errors occurred in script, no returned results/diagrams will be fetched !", True, True)
+                         ScriptAddin.UserMsg("Errors occurred in script (see log), no returned results/diagrams will be fetched !", True, True)
                      End If
                      ' reset current dir
                      Directory.SetCurrentDirectory(previousDir)
@@ -900,7 +924,7 @@ Public Module ScriptAddin
         End If
     End Function
 
-    ''' <summary>ask User (default OKCancel) and log as warning if Critical Or Exclamation (logged errors would pop up the trace information window)</summary> 
+    ''' <summary>ask User (default OKCancel) and log as warning if Critical (logged errors would pop up the trace information window)</summary> 
     ''' <param name="theMessage">the question to be shown/logged</param>
     ''' <param name="questionType">optionally pass question box type, default MsgBoxStyle.OKCancel</param>
     ''' <param name="questionTitle">optionally pass a title for the msgbox instead of default DBAddin Question</param>
@@ -909,7 +933,7 @@ Public Module ScriptAddin
     Public Function QuestionMsg(theMessage As String, Optional questionType As MsgBoxStyle = MsgBoxStyle.OkCancel, Optional questionTitle As String = "ScriptAddin Question", Optional msgboxIcon As MsgBoxStyle = MsgBoxStyle.Question) As MsgBoxResult
         Dim theMethod As Object = (New System.Diagnostics.StackTrace).GetFrame(1).GetMethod
         Dim caller As String = theMethod.ReflectedType.FullName + "." + theMethod.Name
-        WriteToLog(theMessage, If(msgboxIcon = MsgBoxStyle.Critical Or msgboxIcon = MsgBoxStyle.Exclamation, EventLogEntryType.Warning, EventLogEntryType.Information), caller) ' to avoid pop up of trace log
+        WriteToLog(theMessage, If(msgboxIcon = MsgBoxStyle.Critical, EventLogEntryType.Warning, EventLogEntryType.Information), caller) ' to avoid pop up of trace log
         If nonInteractive Then
             If questionType = MsgBoxStyle.OkCancel Then Return MsgBoxResult.Cancel
             If questionType = MsgBoxStyle.YesNo Then Return MsgBoxResult.No
@@ -926,21 +950,23 @@ Public Module ScriptAddin
     ''' <param name="eEventType">event type: info, warning, error</param>
     ''' <param name="caller">reflection based caller information: module.method</param>
     Private Sub WriteToLog(Message As String, eEventType As EventLogEntryType, caller As String)
+        Dim timestamp As Int32 = DateAndTime.Now().Month * 100000000 + DateAndTime.Now().Day * 1000000 + DateAndTime.Now().Hour * 10000 + DateAndTime.Now().Minute * 100 + DateAndTime.Now().Second
+
         If nonInteractive Then
             ' collect errors and warnings for returning messages in executeScript
             If eEventType = EventLogEntryType.Error Or eEventType = EventLogEntryType.Warning Then nonInteractiveErrMsgs += caller + ":" + Message + vbCrLf
-            Trace.TraceInformation("Non interactive: {0}: {1}", caller, Message)
+            theLogDisplaySource.TraceEvent(TraceEventType.Warning, timestamp, "Non interactive: {0}: {1}", caller, Message)
         Else
             Select Case eEventType
                 Case EventLogEntryType.Information
-                    Trace.TraceInformation("{0}: {1}", caller, Message)
+                    theLogDisplaySource.TraceEvent(TraceEventType.Information, timestamp, "{0}: {1}", caller, Message)
                 Case EventLogEntryType.Warning
-                    Trace.TraceWarning("{0}: {1}", caller, Message)
+                    theLogDisplaySource.TraceEvent(TraceEventType.Warning, timestamp, "{0}: {1}", caller, Message)
                     WarningIssued = True
                     ' at Add-in Start ribbon has not been loaded so avoid call to it here..
                     If theRibbon IsNot Nothing Then theRibbon.InvalidateControl("showLog")
                 Case EventLogEntryType.Error
-                    Trace.TraceError("{0}: {1}", caller, Message)
+                    theLogDisplaySource.TraceEvent(TraceEventType.Error, timestamp, "{0}: {1}", caller, Message)
             End Select
         End If
     End Sub
@@ -984,6 +1010,7 @@ Public Module ScriptAddin
                 If Left(key, 7) = "ExePath" Then ScriptExecutables.Add(key.Substring(7))
             Next
         End If
+        Try : ScriptAddin.DebugAddin = fetchSetting("DebugAddin", "False") : Catch Ex As Exception : End Try
     End Sub
 
     Public Sub insertScriptExample()

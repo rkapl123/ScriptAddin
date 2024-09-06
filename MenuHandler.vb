@@ -34,7 +34,7 @@ Public Class MenuHandler
                   "<button id='central' label='Central settings' onAction='showAddinConfig' imageMso='TablePropertiesDialog' screentip='Show/edit central settings for Script Addin' />" +
                   "<button id='addin' label='ScriptAddin settings' onAction='showAddinConfig' imageMso='ServerProperties' screentip='Show/edit standard Addin settings for Script Addin' />" +
                 "</menu>" +
-                "<toggleButton id='debug' label='script output win' onAction='toggleButton' getImage='getImage' getPressed='getPressed' tag='3' screentip='toggles script output window visibility' supertip='for debugging you can display the script output' />" +
+                "<toggleButton id='debug' getLabel='getDebugLabel' onAction='toggleButton' getImage='getImage' getPressed='getPressed' tag='3' screentip='toggles script output window visibility' supertip='for debugging you can display the script output' />" +
                 "<button id='showLog' label='Log' tag='4' screentip='shows Scriptaddins Diagnostic Display' getImage='getLogsImage' onAction='clickShowLog'/>" +
               "</buttonGroup>" +
             "<dialogBoxLauncher><button id='dialog' label='About Scriptaddin' onAction='refreshScriptDefs' tag='5' screentip='Show Aboutbox (and refresh ScriptDefinitions from current Workbook from there)'/></dialogBoxLauncher></group>" +
@@ -51,6 +51,8 @@ Public Class MenuHandler
         Return customUIXml
     End Function
 
+#Disable Warning IDE0060 ' Hide not used Parameter warning as this is very often the case with the below callbacks from the ribbon
+
     ''' <summary>show xll standard config (AppSetting), central config (referenced by App Settings file attr) or user config (referenced by CustomSettings configSource attr)</summary>
     ''' <param name="control"></param>
     Public Sub showAddinConfig(control As IRibbonControl)
@@ -59,8 +61,10 @@ Public Class MenuHandler
             ScriptAddin.UserMsg("Display of " + control.Id + " settings disabled !", True, True)
             Exit Sub
         End If
-        Dim theSettingsDlg As EditSettings = New EditSettings()
-        theSettingsDlg.Tag = control.Id
+
+        Dim theSettingsDlg As New EditSettings With {
+            .Tag = control.Id
+        }
         theSettingsDlg.ShowDialog()
         If control.Id = "addin" Or control.Id = "central" Then
             ConfigurationManager.RefreshSection("appSettings")
@@ -109,6 +113,20 @@ Public Class MenuHandler
         End If
     End Function
 
+    ''' <summary>reflect the change in the toggle buttons title</summary>
+    ''' <returns>label, depending also on script running or not</returns>
+    Public Function GetDebugLabel(control As IRibbonControl) As String
+        Dim scriptRunning As Integer = -1
+        For Each c As Integer In ScriptAddin.ScriptRunDic.Keys
+            If ScriptAddin.ScriptRunDic(c) Then
+                scriptRunning = c
+                Exit For
+            End If
+        Next
+        Return "script output" + IIf(scriptRunning < 0, " inactive", " for run: " + CStr(scriptRunning))
+    End Function
+
+
     ''' <summary>toggle debug button</summary>
     ''' <param name="pressed"></param>
     Public Sub toggleButton(control As IRibbonControl, pressed As Boolean)
@@ -118,7 +136,7 @@ Public Class MenuHandler
             If Not IsNothing(ScriptAddin.theScriptOutput) Then
                 If pressed Then
                     ScriptAddin.theScriptOutput.Opacity = 1.0
-                    ScriptAddin.theScriptOutput.BringToFront()
+                    'ScriptAddin.theScriptOutput.BringToFront()
                     ScriptAddin.theScriptOutput.Refresh()
                 Else
                     ScriptAddin.theScriptOutput.Opacity = 0.0
@@ -131,7 +149,7 @@ Public Class MenuHandler
 
     ''' <summary></summary>
     Public Sub refreshScriptDefs(control As IRibbonControl)
-        Dim myAbout As AboutBox1 = New AboutBox1
+        Dim myAbout As New AboutBox1
         myAbout.ShowDialog()
     End Sub
 
@@ -261,5 +279,7 @@ Public Class MenuHandler
     Public Function getDynMenVisible(control As IRibbonControl) As Boolean
         Return ScriptAddin.ScriptDefsheetMap.ContainsKey(control.Id)
     End Function
+
+#Enable Warning IDE0060
 
 End Class

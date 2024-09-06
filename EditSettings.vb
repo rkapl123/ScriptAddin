@@ -74,7 +74,7 @@ Public Class EditSettings
             If Me.Tag = "user" Then schemaString = My.Resources.SchemaFiles.ScriptAddinUser
             Dim schemadoc As XmlReader = XmlReader.Create(New StringReader(schemaString))
             doc.Schemas.Add("", schemadoc)
-            Dim eventHandler As Schema.ValidationEventHandler = New Schema.ValidationEventHandler(AddressOf myValidationEventHandler)
+            Dim eventHandler As New Schema.ValidationEventHandler(AddressOf myValidationEventHandler)
             doc.LoadXml(Me.EditBox.Text)
             doc.Validate(eventHandler)
         Catch ex As Exception
@@ -87,6 +87,7 @@ Public Class EditSettings
             ScriptAddin.UserMsg("Couldn't write " + Me.Tag + " settings into " + settingsPath + ": " + ex.Message, True, True)
             Exit Sub
         End Try
+        If Me.Tag = "addin" Then ScriptAddin.UserMsg("Restart Addin (or Excel) to reflect changes in Addin settings.", True, False)
         Me.DialogResult = DialogResult.OK
         Me.Close()
     End Sub
