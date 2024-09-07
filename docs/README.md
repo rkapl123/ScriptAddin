@@ -3,7 +3,7 @@ Script Addin provides an easy way to define and run script interactions started 
 # Using ScriptAddin
 
 Running an script is simply done by selecting the desired executable (R, Python, Perl, whatever was defined) on the dropdown "ScriptExecutable" in the Script Addin Ribbon Tab and clicking "run <ScriptDefinition>"
-beneath the Sheet-button in the Ribbon group "Run Scripts defined in WB/sheets names". With an activated "script output win" toggle button the script output is shown in an opened window.
+beneath the Sheet-button in the Ribbon group "Run Scripts defined in WB/sheets names". With an activated "script output active/inactive" toggle button the script output is shown in an opened window.
 Selecting the Script definition in the ScriptDefinition dropdown highlights the specified definition range.
 
 When running scripts, following is executed:
@@ -84,9 +84,9 @@ You can also run ScriptAddin in an automated way, simply issue the VBA command `
 
 Known Issues/Enhancements:
 
-- [ ] Implement a faster way to save textfiles from excel
 - Output redirected to the script output window is usually block buffered, so for more interactivity enable any buffer flushing (e.g. in Perl done with `$| = 1;`). Buffer flushing however only works if newlines are printed, so output is still not seen until `\n`!
-- [ ] Input in the script output window is returning ALL key char values, so `my $val = <STDIN>;` with user input of `a<BackSPC>b` will yield `a<BkSpc>b` in `$val` instead of `b`.
+- Input in the script output window is returning ALL key char values, so `my $val = <STDIN>;` with user input of `a<Backspace key pressed>b` will yield `a<BkSpc>b` in `$val` instead of `b`.
+- [ ] Implement a faster way to save textfiles from excel
 
 # Installation of ScriptAddin and Settings
 
@@ -100,9 +100,8 @@ Adapt the settings in ScriptAddin.xll.config:
   <configSections>
     <section name="UserSettings" type="System.Configuration.NameValueSectionHandler"/>
   </configSections>
-  <UserSettings configSource="ScriptAddinUser.config"/> : This is a redirection to a user specific config file containing the same information below. These settings always override the appSettings
-  <appSettings file="your.Central.Configfile.Path"> : This is a redirection to a central config file containing the same information below
-    <add key="LocalHelp" value="C:\YourPathToLocalHelp\LocalHelp.htm" /> : If you download this page to your local site, put it there.
+  <UserSettings configSource="ScriptAddinUser.config"/> : This is a redirection to a user specific config file containing the <appSettings> ... </appSettings> information below (in the same path as ScriptAddin.xll.config). These settings always override the central appSettings
+  <appSettings file="\\Path\to\ScriptAddinCentral.config"> : This is a redirection to a central config file containing the <appSettings> ... </appSettings> information below (any path). The central config file overrides the settings below.
     <add key="ExePathR" value="C:\Program Files\R\R-4.0.4\bin\x64\Rscript.exe" /> : The Executable Path used for R
     <add key="FSuffixR" value=".R" /> : The File suffix used when writing temporary Files used in scriptrng/scriptcell for R
     <add key="StdErrXR" value="False" /> : Shall any output to standard err by R be regarded as an error that blocks further processing (default: True)
@@ -120,6 +119,14 @@ Adapt the settings in ScriptAddin.xll.config:
     <add key="ExePathCscript" value="C:\Windows\System32\cscript.exe" />
     <add key="FSuffixCscript" value=".js" />
     <add key="presetSheetButtonsCount" value="24"/> : the preset maximum Button Count for Sheets (if you expect more sheets with ScriptDefinitions, you can set it accordingly)
+    <add key="DebugAddin" value="True"/> : activate Info messages in Log Display to debug addin.
+    <add key="disableSettingsDisplay" value="addin"/> : enter a name here for settings that should not be available for viewing/editing to the user (addin: ScriptAddin.xll.config, central: ScriptAddinCentral.config, user: ScriptAddinUser.config).
+    <add key="LocalHelp" value="\\LocalPath\to\LocalHelp.htm" /> : If you download this page to your local site, put it there to have it offline.
+    <add key="localUpdateFolder" value="" /> : For updating the Script-Addin Version, you can provide an alternative folder, where the deploy script and the files are maintained for other users.
+    <add key="localUpdateMessage" value="New version available in local update folder, start deployAddin.cmd to install it:" /> : For the alternative folder update, you can also provide an alternative message to display.
+    <add key="updatesDownloadFolder" value="C:\temp\" /> : You can specify a different download folder here instead of C:\temp\.
+    <add key="updatesMajorVersion" value="1.0.0." /> : Usually the versions are numbered 1.0.0.x, in case this is different, the Major Version can be overridden here.
+    <add key="updatesUrlBase" value="https://github.com/rkapl123/DBAddin/archive/refs/tags/" /> : Here, the URL base for the update zip packages can be overridden.
   </appSettings>
   <system.diagnostics>
     <sources>
@@ -136,6 +143,14 @@ Adapt the settings in ScriptAddin.xll.config:
     </sources>
   </system.diagnostics>
 </configuration>
+```
+
+In the ScriptAddinUser.config setting file, there are two settings that are persisted by the addin itself, so they should not really be changed:
+```XML
+  <appSettings>
+    <add key="debugScript" value="True"/> : whether the script output is active or inactive
+    <add key="selectedScriptExecutable" value="0"/> : the currently selected executable for script execution (with dropdown ScriptExecutable)
+  </appSettings>
 ```
 
 The settings for the scripting executables are structured as follows `<ScriptExecPrefix><ScriptType>` and form the selection of available script types in ScriptAddin.

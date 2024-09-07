@@ -1,6 +1,7 @@
-﻿Imports System.Runtime.InteropServices
+﻿Imports Microsoft.Office.Interop.Excel
 Imports ExcelDna.Integration.CustomUI
 Imports ExcelDna.Logging
+Imports System.Runtime.InteropServices
 Imports System.Configuration
 
 ''' <summary>Events from Ribbon</summary>
@@ -80,9 +81,10 @@ Public Class MenuHandler
     ''' <summary>after clicking on the script drop down button, the defined script definition is started</summary>
     Public Sub startScript(control As IRibbonControl)
         Dim errStr As String
-        ' set ScriptDefinition to invocaters range... invocating sheet is put into Tag
+        ' set ScriptDefinition to callers range... invocating sheet is put into Tag
         ScriptAddin.ScriptDefinitionRange = ScriptAddin.ScriptDefsheetColl(control.Tag).Item(control.Id)
         ScriptAddin.SkipScriptAndPreparation = My.Computer.Keyboard.CtrlKeyDown
+        Dim origSelection As Range = ExcelDna.Integration.ExcelDnaUtil.Application.Selection
         Try
             ScriptAddin.ScriptDefinitionRange.Parent.Select()
         Catch ex As Exception
@@ -90,6 +92,8 @@ Public Class MenuHandler
         End Try
         ScriptAddin.ScriptDefinitionRange.Select()
         errStr = ScriptAddin.startScriptprocess()
+        origSelection.Parent.Select()
+        origSelection.Select()
         If errStr <> "" Then ScriptAddin.UserMsg(errStr, True, True)
     End Sub
 
@@ -123,7 +127,7 @@ Public Class MenuHandler
                 Exit For
             End If
         Next
-        Return "script output" + IIf(scriptRunning < 0, " inactive", " for run: " + CStr(scriptRunning))
+        Return "script output " + IIf(ScriptAddin.debugScript, "active", "inactive") + IIf(scriptRunning < 0, "", " for run: " + CStr(scriptRunning))
     End Function
 
 
