@@ -1,4 +1,7 @@
-﻿Imports Microsoft.Office.Interop.Excel
+﻿Imports Microsoft.Office.Interop
+Imports Microsoft.Office.Interop.Excel
+Imports Microsoft.Vbe.Interop
+Imports ExcelDna.Integration
 Imports ExcelDna.Integration.CustomUI
 Imports ExcelDna.Logging
 Imports System.Runtime.InteropServices
@@ -83,6 +86,10 @@ Public Class MenuHandler
         Dim errStr As String
         ' set ScriptDefinition to callers range... invocating sheet is put into Tag
         ScriptAddin.ScriptDefinitionRange = ScriptAddin.ScriptDefsheetColl(control.Tag).Item(control.Id)
+        If My.Computer.Keyboard.ShiftKeyDown Then
+            createCButton(control.Tag, control.Id)
+            Exit Sub
+        End If
         ScriptAddin.SkipScriptAndPreparation = My.Computer.Keyboard.CtrlKeyDown
         Dim origSelection As Range = ExcelDna.Integration.ExcelDnaUtil.Application.Selection
         Try
@@ -95,6 +102,50 @@ Public Class MenuHandler
         origSelection.Parent.Select()
         origSelection.Select()
         If errStr <> "" Then ScriptAddin.UserMsg(errStr, True, True)
+    End Sub
+
+    ''' <summary>create a command-button for the currently activated script</summary>
+    ''' <param name="sheetName"></param>
+    ''' <param name="buttonName"></param>
+    Private Sub createCButton(sheetName As String, buttonName As String)
+        Dim cbshp As Excel.OLEObject = Nothing
+        Dim cb As Forms.CommandButton
+        Try
+            cbshp = ExcelDnaUtil.Application.ActiveSheet.OLEObjects.Add(ClassType:="Forms.CommandButton.1", Link:=False, DisplayAsIcon:=False, Left:=600, Top:=70, Width:=120, Height:=24)
+            cb = cbshp.Object
+        Catch ex As Exception
+            UserMsg("Can't create command button: " + ex.Message, "CommandButton create Error")
+            Try : cbshp.Delete() : Catch ex2 As Exception : End Try
+            Exit Sub
+        End Try
+        Dim cbName As String = ""
+        Try
+            cbName = ScriptAddin.ScriptDefinitionRange.Name.Name
+        Catch ex As Exception
+        End Try
+        If InStr(cbName, "!") > 0 And InStr(cbName, ExcelDnaUtil.Application.ActiveSheet.Name + "!") = 0 Then
+            UserMsg("Name of script definition range is not workbook-wide or is not on current sheet. Only workbook-wide names or names on this sheet are allowed for assigning a control button here.", True, True)
+            Exit Sub
+        ElseIf InStr(cbName, ExcelDnaUtil.Application.ActiveSheet.Name + "!") > 0 Then
+            cbName = cbName.Replace(ExcelDnaUtil.Application.ActiveSheet.Name + "!", "")
+        End If
+        Try
+            cb.Name = cbName
+            cb.Caption = "Start " + buttonName + " on " + sheetName
+        Catch ex As Exception
+            cbshp.Delete()
+            ' known failure when setting the cb name if there already exists a button with that name
+            If ex.Message.Contains("0x8002802C") Then
+                UserMsg("Can't name the new command button '" + cbName + "' as there already exists a button with that name: " + ex.Message, True, True)
+            Else
+                UserMsg("Can't name command button '" + cbName + "': " + ex.Message, True, True)
+            End If
+            Exit Sub
+        End Try
+        ' fail to assign a handler? remove command-button (otherwise it gets hard to edit an existing DBModification with a different name).
+        If Not AddInEvents.assignHandler(ExcelDnaUtil.Application.ActiveSheet) Then
+            cbshp.Delete()
+        End If
     End Sub
 
     ''' <summary>reflect the change in the toggle buttons title</summary>

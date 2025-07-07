@@ -15,6 +15,8 @@ When running scripts, following is executed:
 
 When holding the Ctrl-Key pressed while clicking "run <ScriptDefinition>", only step 4 is executed, skipping steps 1 to 3. This allows to quickly reinsert changed or deleted results/diagrams in Excel.
 
+When holding the Shift-Key pressed while clicking "run <ScriptDefinition>", a control button is added for the selected script definition if the name of the script definition range is either workbook-wide or on the currently active sheet. Using this button the script can be executed in the same way as with the ScriptDefinition dropdown.
+
 ![Image of screenshot1](https://raw.githubusercontent.com/rkapl123/ScriptAddin/master/docs/screenshot1.png)
 
 # Defining ScriptAddin script interactions (ScriptDefinitions)

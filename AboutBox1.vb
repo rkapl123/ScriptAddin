@@ -21,7 +21,7 @@ Public NotInheritable Class AboutBox1
         Next
         Me.LabelProductName.Text = "ScriptAddin Help"
         Me.Text = String.Format("About {0}", My.Application.Info.Title)
-        Me.LabelVersion.Text = String.Format("Version {0}:{1}", My.Application.Info.Version.ToString, sModuleInfo)
+        Me.LabelVersion.Text = String.Format("Version {0}, build-time: {1}", My.Application.Info.Version.ToString, sModuleInfo)
         Me.LabelCopyright.Text = My.Application.Info.Copyright
         Me.LabelCompanyName.Text = "Help and Sources on: " + My.Application.Info.CompanyName
         Me.TextBoxDescription.Text = My.Application.Info.Description

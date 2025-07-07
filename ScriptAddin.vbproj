@@ -70,6 +70,11 @@
       <HintPath>packages\ExcelDna.Interop.15.0.1\lib\net452\Microsoft.Vbe.Interop.dll</HintPath>
       <EmbedInteropTypes>True</EmbedInteropTypes>
     </Reference>
+    <Reference Include="Microsoft.Vbe.Interop.Forms, Version=11.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+      <HintPath>..\..\Windows\assembly\GAC_MSIL\Microsoft.Vbe.Interop.Forms\11.0.0.0__71e9bce111e9429c\Microsoft.Vbe.Interop.Forms.dll</HintPath>
+    </Reference>
     <Reference Include="Office, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
       <HintPath>packages\ExcelDna.Interop.15.0.1\lib\net452\Office.dll</HintPath>
       <EmbedInteropTypes>True</EmbedInteropTypes>

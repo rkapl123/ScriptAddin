@@ -165,7 +165,9 @@ Public Class ScriptOutput
     End Sub
 
     Private Sub ScriptOutput_KeyPress(sender As Object, e As KeyPressEventArgs) Handles Me.KeyPress
-        cmd.StandardInput.Write(e.KeyChar)
+        If Not IsNothing(cmd) AndAlso Not IsNothing(cmd.StandardInput) Then
+            cmd.StandardInput.Write(e.KeyChar)
+        End If
     End Sub
 
     Private Sub ScriptOutput_Closing(sender As Object, e As CancelEventArgs) Handles Me.Closing
