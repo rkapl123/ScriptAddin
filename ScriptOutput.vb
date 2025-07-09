@@ -138,6 +138,7 @@ Public Class ScriptOutput
             appendAction.Invoke("Finished script execution, exit code: " + cmd.ExitCode.ToString(), System.Drawing.Color.Yellow, System.Drawing.Color.Black)
         End If
         cmd = Nothing
+        If Not ScriptAddin.debugScript Then Me.Close()
     End Sub
 
     Private Sub appendTxt(theText As String, textCol As System.Drawing.Color, backCol As System.Drawing.Color)

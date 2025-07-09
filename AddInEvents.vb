@@ -103,6 +103,7 @@ Public Class AddInEvents
         ElseIf errStr <> vbNullString Then
             ScriptAddin.UserMsg("Error when getting definitions in Workbook_Activate: " + errStr, True, True)
         End If
+        assignHandler(Wb.ActiveSheet)
         ScriptAddin.theRibbon.Invalidate()
     End Sub
 
@@ -217,6 +218,14 @@ Public Class AddInEvents
                     Dim ctrlName As String
                     Try : ctrlName = Sh.OLEObjects(shp.Name).Object.Name : Catch ex As Exception : ctrlName = "" : End Try
                     If Left(ctrlName, 7) = "Script_" Then
+                        ' check if script range actually exists and has three columns
+                        Dim testRange As Excel.Range
+                        Try
+                            testRange = ExcelDna.Integration.ExcelDnaUtil.Application.Range(ctrlName)
+                        Catch ex As Exception
+                            Continue For
+                        End Try
+                        If Not IsNothing(testRange) AndAlso testRange.Columns.Count <> 3 Then Continue For
                         collShpNames += IIf(collShpNames <> "", ",", "") + shp.Name
                         If cb1 Is Nothing Then
                             cb1 = Sh.OLEObjects(shp.Name).Object
@@ -254,8 +263,7 @@ Public Class AddInEvents
     ''' <summary>assign command buttons anew with each change of sheets</summary>
     ''' <param name="Sh"></param>
     Private Sub Application_SheetActivate(Sh As Object) Handles Application.SheetActivate
-        ' only when needed assign button handler for this sheet ...
-        If Not IsNothing(ScriptDefsheetColl) AndAlso Not IsNothing(ScriptDefsheetMap) AndAlso ScriptDefsheetColl.Count > 0 AndAlso ScriptDefsheetMap.Count > 0 Then assignHandler(Sh)
+        assignHandler(Sh)
     End Sub
 
     ''' <summary>used for releasing com objects</summary>

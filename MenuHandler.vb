@@ -55,6 +55,15 @@ Public Class MenuHandler
         Return customUIXml
     End Function
 
+
+    ''' <summary>used to turn off button design mode after ribbon actions (turned on when adding control buttons with shift+click script)</summary>
+    Sub turnOffDesignMode()
+        Dim cbrs As Object = ExcelDnaUtil.Application.CommandBars
+        If cbrs IsNot Nothing AndAlso cbrs.GetEnabledMso("DesignMode") AndAlso cbrs.GetPressedMso("DesignMode") Then
+            cbrs.ExecuteMso("DesignMode")
+        End If
+    End Sub
+
 #Disable Warning IDE0060 ' Hide not used Parameter warning as this is very often the case with the below callbacks from the ribbon
 
     ''' <summary>show xll standard config (AppSetting), central config (referenced by App Settings file attr) or user config (referenced by CustomSettings configSource attr)</summary>
@@ -79,6 +88,7 @@ Public Class MenuHandler
         initScriptExecutables()
         ' also display in ribbon
         theRibbon.Invalidate()
+        turnOffDesignMode()
     End Sub
 
     ''' <summary>after clicking on the script drop down button, the defined script definition is started</summary>
@@ -102,12 +112,21 @@ Public Class MenuHandler
         origSelection.Parent.Select()
         origSelection.Select()
         If errStr <> "" Then ScriptAddin.UserMsg(errStr, True, True)
+        turnOffDesignMode()
     End Sub
 
     ''' <summary>create a command-button for the currently activated script</summary>
     ''' <param name="sheetName"></param>
     ''' <param name="buttonName"></param>
     Private Sub createCButton(sheetName As String, buttonName As String)
+        ' turn on design mode to be able to modify the created button
+        Dim cbrs As Object = ExcelDnaUtil.Application.CommandBars
+        If cbrs IsNot Nothing AndAlso cbrs.GetEnabledMso("DesignMode") Then
+            If Not cbrs.GetPressedMso("DesignMode") Then cbrs.ExecuteMso("DesignMode")
+        Else
+            UserMsg("Couldn't toggle design mode, because Design mode command-bar button is not available (no button?)", True, True)
+        End If
+
         Dim cbshp As Excel.OLEObject = Nothing
         Dim cb As Forms.CommandButton
         Try
@@ -142,6 +161,11 @@ Public Class MenuHandler
             End If
             Exit Sub
         End Try
+        If Len(cbName) > 31 Then
+            cbshp.Delete()
+            UserMsg("Command button code-names cannot be longer than 31 characters: '" + cbName + "', you need to rename the script definition range and create the command button again.", True, True)
+            Exit Sub
+        End If
         ' fail to assign a handler? remove command-button (otherwise it gets hard to edit an existing DBModification with a different name).
         If Not AddInEvents.assignHandler(ExcelDnaUtil.Application.ActiveSheet) Then
             cbshp.Delete()
@@ -181,7 +205,6 @@ Public Class MenuHandler
         Return "script output " + IIf(ScriptAddin.debugScript, "active", "inactive") + IIf(scriptRunning < 0, "", " for run: " + CStr(scriptRunning))
     End Function
 
-
     ''' <summary>toggle debug button</summary>
     ''' <param name="pressed"></param>
     Public Sub toggleButton(control As IRibbonControl, pressed As Boolean)
@@ -200,12 +223,14 @@ Public Class MenuHandler
             ' invalidate to reflect the change in the toggle buttons image
             ScriptAddin.theRibbon.InvalidateControl(control.Id)
         End If
+        turnOffDesignMode()
     End Sub
 
     ''' <summary></summary>
     Public Sub refreshScriptDefs(control As IRibbonControl)
         Dim myAbout As New AboutBox1
         myAbout.ShowDialog()
+        turnOffDesignMode()
     End Sub
 
     ''' <summary></summary>
@@ -242,6 +267,7 @@ Public Class MenuHandler
         ScriptAddin.ScriptDefinitionRange = Scriptcalldefs(index)
         ScriptAddin.ScriptDefinitionRange.Parent.Select()
         ScriptAddin.ScriptDefinitionRange.Select()
+        turnOffDesignMode()
     End Sub
 
     ''' <summary></summary>
@@ -281,6 +307,7 @@ Public Class MenuHandler
         selectedScriptExecutable = index
         ScriptAddin.ScriptType = ScriptAddin.ScriptExecutables(selectedScriptExecutable)
         ScriptAddin.setUserSetting("selectedScriptExecutable", index.ToString())
+        turnOffDesignMode()
     End Sub
 
     ''' <summary>display warning icon on log button if warning has been logged...</summary>
@@ -298,8 +325,8 @@ Public Class MenuHandler
     ''' <param name="control"></param>
     Public Sub insertExample(control As IRibbonControl)
         ScriptAddin.insertScriptExample()
+        turnOffDesignMode()
     End Sub
-
 
     ''' <summary>show the trace log</summary>
     ''' <param name="control"></param>
