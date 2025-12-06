@@ -161,15 +161,18 @@ Public Class MenuHandler
             End If
             Exit Sub
         End Try
-        If Len(cbName) > 31 Then
+        If Len(cbName) > excelNamesLengthLimit Then
             cbshp.Delete()
-            UserMsg("Command button code-names cannot be longer than 31 characters: '" + cbName + "', you need to rename the script definition range and create the command button again.", True, True)
+            UserMsg("Command button code-names cannot be longer than " + CStr(excelNamesLengthLimit) + " characters: '" + cbName + "', you need to rename the script definition range and create the command button again.", True, True)
             Exit Sub
         End If
-        ' fail to assign a handler? remove command-button (otherwise it gets hard to edit an existing DBModification with a different name).
-        If Not AddInEvents.assignHandler(ExcelDnaUtil.Application.ActiveSheet) Then
+        ' fail to assign a handler? remove command-button.
+        Try
+            AddInEvents.colCommandButtons.Add(New CommandbuttonClickHandler With {.cb = cb})
+        Catch ex As Exception
+            UserMsg("Error assigning Script action commandbutton '" + cbName + "': " + ex.Message, "CommandButton create Error")
             cbshp.Delete()
-        End If
+        End Try
     End Sub
 
     ''' <summary>reflect the change in the toggle buttons title</summary>

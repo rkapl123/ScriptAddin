@@ -11,6 +11,8 @@ Imports System.Collections.Specialized
 
 ''' <summary>The main functions for working with ScriptDefinitions (named ranges in Excel) and starting the Script processes (writing input, invoking scripts and retrieving results)</summary>
 Public Module ScriptAddin
+    Public Const excelNamesLengthLimit = 31
+
     ''' <summary>script type for calling scripts (could be R, perl, etc)</summary>
     Public ScriptType As String
     ''' <summary>executable name for calling scripts</summary>
@@ -161,8 +163,8 @@ Public Module ScriptAddin
     ''' <summary>gets defined named ranges for script invocation in the current workbook</summary>
     ''' <returns>Error message or null string in case of success</returns>
     Public Function getScriptNames() As String
-        ReDim Preserve Scriptcalldefnames(-1)
-        ReDim Preserve Scriptcalldefs(-1)
+        Scriptcalldefnames = {}
+        Scriptcalldefs = {}
         ScriptDefsheetColl = New Dictionary(Of String, Dictionary(Of String, Range))
         ScriptDefsheetMap = New Dictionary(Of String, String)
         Dim i As Integer = 0
@@ -208,6 +210,7 @@ Public Module ScriptAddin
 
     ''' <summary>reset all ScriptDefinition representations</summary>
     Public Sub resetScriptDefinitions()
+        ScriptDefDic = New Dictionary(Of String, String())
         ScriptDefDic("args") = {}
         ScriptDefDic("argspaths") = {}
         ScriptDefDic("results") = {}
@@ -233,6 +236,7 @@ Public Module ScriptAddin
             ScriptExecAddPath = ""
             ScriptFileSuffix = ""
             StdErrMeansError = True
+            If IsNothing(ScriptDefinitionRange) Then Return "No ScriptDefinitionRange available!"
             For Each defRow As Range In ScriptDefinitionRange.Rows
                 Dim deftype As String, defval As String, deffilepath As String
                 deftype = LCase(defRow.Cells(1, 1).Value2)
@@ -267,7 +271,8 @@ Public Module ScriptAddin
                     If ScriptExecutables.Contains(defval) Then
                         ScriptType = defval
                         theMenuHandler.selectedScriptExecutable = ScriptExecutables.IndexOf(ScriptType)
-                        theRibbon.InvalidateControl("execDropDown")
+                        ' not really important if not set at startup of addin (timing problem as ribbon is not loaded here)
+                        Try : theRibbon.InvalidateControl("execDropDown") : Catch ex As Exception : End Try
                         StdErrMeansError = Not (deffilepath.ToLower() = "n" Or deffilepath.ToLower() = "no")
                     Else
                         Return "Error in setting type, not contained in available types/executables (check AppSettings for available ExePath<> entries)!"
@@ -556,7 +561,7 @@ Public Module ScriptAddin
                          ' reflect running state in debug label...
                          ScriptAddin.theRibbon.InvalidateControl("debug")
                      Next
-
+                     ScriptRunDic = New Dictionary(Of Integer, Boolean)
                      ' after all scripts were finished and no ErrMsg from prepareParam or script, continue with result collection
                      If ErrMsg = "" Then
                          ScriptAddin.finishScriptprocess()
@@ -1010,7 +1015,7 @@ Public Module ScriptAddin
                 If Left(key, 7) = "ExePath" Then ScriptExecutables.Add(key.Substring(7))
             Next
         End If
-        Try : ScriptAddin.DebugAddin = fetchSetting("DebugAddin", "False") : Catch Ex As Exception : End Try
+        Try : ScriptAddin.DebugAddin = CBool(fetchSetting("DebugAddin", "False")) : Catch Ex As Exception : End Try
     End Sub
 
     Public Sub insertScriptExample()

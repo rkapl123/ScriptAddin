@@ -11,46 +11,46 @@ Public Class ScriptOutput
 
     ' mapping for ANSI colors (VT 100 terminal), taken and adapted from https://ss64.com/nt/syntax-ansi.html
     Private ReadOnly fgColDic As New Dictionary(Of String, System.Drawing.Color) From {
-{"30", System.Drawing.Color.Black},
-{"31", System.Drawing.Color.IndianRed},
-{"32", System.Drawing.Color.Green},
-{"33", System.Drawing.Color.Yellow},
-{"34", System.Drawing.Color.Blue},
-{"35", System.Drawing.Color.Magenta},
-{"36", System.Drawing.Color.Cyan},
-{"37", System.Drawing.Color.LightGray},
-{"90", System.Drawing.Color.DarkGray},
-{"91", System.Drawing.Color.Red},
-{"92", System.Drawing.Color.LightGreen},
-{"93", System.Drawing.Color.LightYellow},
-{"94", System.Drawing.Color.LightBlue},
-{"95", System.Drawing.Color.Magenta},
-{"96", System.Drawing.Color.LightCyan},
-{"97", System.Drawing.Color.White}}
+        {"30", System.Drawing.Color.Black},
+        {"31", System.Drawing.Color.IndianRed},
+        {"32", System.Drawing.Color.Green},
+        {"33", System.Drawing.Color.Yellow},
+        {"34", System.Drawing.Color.Blue},
+        {"35", System.Drawing.Color.Magenta},
+        {"36", System.Drawing.Color.Cyan},
+        {"37", System.Drawing.Color.LightGray},
+        {"90", System.Drawing.Color.DarkGray},
+        {"91", System.Drawing.Color.Red},
+        {"92", System.Drawing.Color.LightGreen},
+        {"93", System.Drawing.Color.LightYellow},
+        {"94", System.Drawing.Color.LightBlue},
+        {"95", System.Drawing.Color.Magenta},
+        {"96", System.Drawing.Color.LightCyan},
+        {"97", System.Drawing.Color.White}
+    }
 
     Private ReadOnly bgColDic As New Dictionary(Of String, System.Drawing.Color) From {
-{"40", System.Drawing.Color.Black},
-{"41", System.Drawing.Color.DarkRed},
-{"42", System.Drawing.Color.DarkGreen},
-{"43", System.Drawing.Color.GreenYellow},
-{"44", System.Drawing.Color.DarkBlue},
-{"45", System.Drawing.Color.DarkMagenta},
-{"46", System.Drawing.Color.DarkCyan},
-{"47", System.Drawing.Color.LightGray},
-{"100", System.Drawing.Color.DarkGray},
-{"101", System.Drawing.Color.PaleVioletRed},
-{"102", System.Drawing.Color.LightSeaGreen},
-{"103", System.Drawing.Color.LightGoldenrodYellow},
-{"104", System.Drawing.Color.LightSkyBlue},
-{"105", System.Drawing.Color.Magenta},
-{"106", System.Drawing.Color.DarkCyan},
-{"107", System.Drawing.Color.White}}
+        {"40", System.Drawing.Color.Black},
+        {"41", System.Drawing.Color.DarkRed},
+        {"42", System.Drawing.Color.DarkGreen},
+        {"43", System.Drawing.Color.GreenYellow},
+        {"44", System.Drawing.Color.DarkBlue},
+        {"45", System.Drawing.Color.DarkMagenta},
+        {"46", System.Drawing.Color.DarkCyan},
+        {"47", System.Drawing.Color.LightGray},
+        {"100", System.Drawing.Color.DarkGray},
+        {"101", System.Drawing.Color.PaleVioletRed},
+        {"102", System.Drawing.Color.LightSeaGreen},
+        {"103", System.Drawing.Color.LightGoldenrodYellow},
+        {"104", System.Drawing.Color.LightSkyBlue},
+        {"105", System.Drawing.Color.Magenta},
+        {"106", System.Drawing.Color.DarkCyan},
+        {"107", System.Drawing.Color.White}
+    }
 
     Public Sub New()
-
         ' This call is required by the designer.
         InitializeComponent()
-
         ' Add any initialization after the InitializeComponent() call.
         Try
             Dim args As String = ScriptAddin.ScriptExecArgs + " """ + ScriptAddin.fullScriptPath + "\" + ScriptAddin.script + """ " + ScriptAddin.scriptarguments
@@ -66,12 +66,10 @@ Public Class ScriptOutput
                 .WorkingDirectory = ScriptAddin.fullScriptPath,
                 .WindowStyle = ProcessWindowStyle.Hidden
             }
-
             pstartInfo.EnvironmentVariables.Item("PATH") = pstartInfo.EnvironmentVariables.Item("PATH") + ";" + ScriptAddin.ScriptExecAddPath
             For Each varKey As String In ScriptAddin.ScriptExecAddEnvironVars.Keys
                 pstartInfo.EnvironmentVariables.Item(varKey) = ScriptAddin.ScriptExecAddEnvironVars(varKey)
             Next
-
             cmd = New Process With {
                 .StartInfo = pstartInfo,
                 .EnableRaisingEvents = True
@@ -87,7 +85,6 @@ Public Class ScriptOutput
             ScriptAddin.UserMsg("Error occurred when invoking script '" + ScriptAddin.fullScriptPath + "\" + ScriptAddin.script + "', using '" + ScriptAddin.ScriptExec + "'" + ex.Message + vbCrLf, True, True)
             Me.errMsg = ex.Message
         End Try
-
     End Sub
 
     Private Sub myOutHandler(sender As Object, e As DataReceivedEventArgs)

@@ -1,11 +1,12 @@
 ﻿Imports ExcelDna.Integration
 Imports Microsoft.Office.Interop
 Imports Microsoft.Office.Interop.Excel
-Imports Microsoft.Vbe.Interop ' also need to add reference to Microsoft.Vbe.Interop.Forms, otherwise commandbuttons cb1 to cb0 won't work
+Imports Microsoft.Vbe.Interop ' also need to add reference to Microsoft.Vbe.Interop.Forms, otherwise commandbuttons won't work
 Imports System.Diagnostics
 Imports System.Collections.Generic
 Imports System.Runtime.InteropServices
 Imports Microsoft.Office.Core
+
 
 ''' <summary>Events from Addin (AutoOpen/Close) and Excel (Workbook_Save ...)</summary>
 <ComVisible(True)>
@@ -14,26 +15,8 @@ Public Class AddInEvents
 
     ''' <summary>the Application object for event registration</summary>
     WithEvents Application As Excel.Application
-    ''' <summary>CommandButton that can be inserted on a worksheet (name property being the same as the respective target range (for DBMapper/DBAction) or DBSeqnce Name)</summary>
-    Public Shared WithEvents cb1 As Forms.CommandButton
-    ''' <summary>CommandButton that can be inserted on a worksheet (name property being the same as the respective target range (for DBMapper/DBAction) or DBSeqnce Name)</summary>
-    Shared WithEvents cb2 As Forms.CommandButton
-    ''' <summary>CommandButton that can be inserted on a worksheet (name property being the same as the respective target range (for DBMapper/DBAction) or DBSeqnce Name)</summary>
-    Shared WithEvents cb3 As Forms.CommandButton
-    ''' <summary>CommandButton that can be inserted on a worksheet (name property being the same as the respective target range (for DBMapper/DBAction) or DBSeqnce Name)</summary>
-    Shared WithEvents cb4 As Forms.CommandButton
-    ''' <summary>CommandButton that can be inserted on a worksheet (name property being the same as the respective target range (for DBMapper/DBAction) or DBSeqnce Name)</summary>
-    Shared WithEvents cb5 As Forms.CommandButton
-    ''' <summary>CommandButton that can be inserted on a worksheet (name property being the same as the respective target range (for DBMapper/DBAction) or DBSeqnce Name)</summary>
-    Shared WithEvents cb6 As Forms.CommandButton
-    ''' <summary>CommandButton that can be inserted on a worksheet (name property being the same as the respective target range (for DBMapper/DBAction) or DBSeqnce Name)</summary>
-    Shared WithEvents cb7 As Forms.CommandButton
-    ''' <summary>CommandButton that can be inserted on a worksheet (name property being the same as the respective target range (for DBMapper/DBAction) or DBSeqnce Name)</summary>
-    Shared WithEvents cb8 As Forms.CommandButton
-    ''' <summary>CommandButton that can be inserted on a worksheet (name property being the same as the respective target range (for DBMapper/DBAction) or DBSeqnce Name)</summary>
-    Shared WithEvents cb9 As Forms.CommandButton
-    ''' <summary>CommandButton that can be inserted on a worksheet (name property being the same as the respective target range (for DBMapper/DBAction) or DBSeqnce Name)</summary>
-    Shared WithEvents cb0 As Forms.CommandButton
+    ''' <summary>collection of command button handlers for assigned script actions</summary>
+    Public Shared colCommandButtons As New Collection
 
     ''' <summary>connect to Excel when opening Addin</summary>
     Public Sub AutoOpen() Implements IExcelAddIn.AutoOpen
@@ -50,7 +33,7 @@ Public Class AddInEvents
             If errStr = "no ScriptAddinNames" Then
                 ScriptAddin.resetScriptDefinitions()
             ElseIf errStr <> vbNullString Then
-                ScriptAddin.UserMsg("Error when getting definitions in Workbook_Activate: " + errStr, True, True)
+                ScriptAddin.UserMsg("Error when getting definitions in AutoOpen: " + errStr, True, True)
             End If
         End If
 
@@ -71,7 +54,7 @@ Public Class AddInEvents
     End Sub
 
     ''' <summary>save arg ranges to text files as well </summary>
-    Private Sub Workbook_Save(Wb As Workbook, ByVal SaveAsUI As Boolean, ByRef Cancel As Boolean) Handles Application.WorkbookBeforeSave
+    Private Sub Application_WorkbookBeforeSave(Wb As Workbook, ByVal SaveAsUI As Boolean, ByRef Cancel As Boolean) Handles Application.WorkbookBeforeSave
         Dim errStr As String
         ' avoid resetting ScriptDefinition when dropdown selected for a specific ScriptDefinition !
         If ScriptAddin.dropDownSelected Then
@@ -95,7 +78,7 @@ Public Class AddInEvents
     End Sub
 
     ''' <summary>refresh ribbon with current workbook's ScriptAddin Names</summary>
-    Private Sub Workbook_Activate(Wb As Workbook) Handles Application.WorkbookActivate
+    Private Sub Application_WorkbookActivate(Wb As Workbook) Handles Application.WorkbookActivate
         Dim errStr As String = doDefinitions(Wb)
         ScriptAddin.dropDownSelected = False
         If errStr = "no ScriptAddinNames" Then
@@ -103,7 +86,7 @@ Public Class AddInEvents
         ElseIf errStr <> vbNullString Then
             ScriptAddin.UserMsg("Error when getting definitions in Workbook_Activate: " + errStr, True, True)
         End If
-        assignHandler(Wb.ActiveSheet)
+        InitializeCBHandlers(Wb)
         ScriptAddin.theRibbon.Invalidate()
     End Sub
 
@@ -121,7 +104,7 @@ Public Class AddInEvents
         End If
         ' get the definitions from the current defined range (first name in ScriptAddin Names)
         errStr = ScriptAddin.getScriptDefinitions()
-        If errStr <> vbNullString Then Return "Error while getScriptDefinitions in doDefinitions: " + errStr
+        If errStr <> vbNullString Then Return "Error during getScriptDefinitions in doDefinitions: " + errStr
         LogInfo("done ScriptDefinitions for workbook " + Wb.Name)
         Return vbNullString
     End Function
@@ -130,59 +113,64 @@ Public Class AddInEvents
     Private Sub Application_WorkbookDeactivate(Wb As Workbook) Handles Application.WorkbookDeactivate
         currWb = Nothing
         ScriptAddin.dropDownSelected = False
-        ReDim Preserve Scriptcalldefnames(-1)
-        ReDim Preserve Scriptcalldefs(-1)
+        Scriptcalldefnames = {}
+        Scriptcalldefs = {}
         ScriptDefsheetColl = New Dictionary(Of String, Dictionary(Of String, Range))
         ScriptDefsheetMap = New Dictionary(Of String, String)
         ScriptAddin.resetScriptDefinitions()
         ScriptAddin.theRibbon.Invalidate()
     End Sub
 
-    ''' <summary>specific click handler for the 1st definable command button</summary>
-    Private Shared Sub cb1_Click() Handles cb1.Click
-        cbClick(cb1.Name)
-    End Sub
-    ''' <summary>specific click handler for the 2nd definable command button</summary>
-    Private Shared Sub cb2_Click() Handles cb2.Click
-        cbClick(cb2.Name)
-    End Sub
-    ''' <summary>specific click handler for the 3rd definable command button</summary>
-    Private Shared Sub cb3_Click() Handles cb3.Click
-        cbClick(cb3.Name)
-    End Sub
-    ''' <summary>specific click handler for the 4th definable command button</summary>
-    Private Shared Sub cb4_Click() Handles cb4.Click
-        cbClick(cb4.Name)
-    End Sub
-    ''' <summary>specific click handler for the 5th definable command button</summary>
-    Private Shared Sub cb5_Click() Handles cb5.Click
-        cbClick(cb5.Name)
-    End Sub
-    ''' <summary>specific click handler for the 6th definable command button</summary>
-    Private Shared Sub cb6_Click() Handles cb6.Click
-        cbClick(cb6.Name)
-    End Sub
-    ''' <summary>specific click handler for the 7th definable command button</summary>
-    Private Shared Sub cb7_Click() Handles cb7.Click
-        cbClick(cb7.Name)
-    End Sub
-    ''' <summary>specific click handler for the 8th definable command button</summary>
-    Private Shared Sub cb8_Click() Handles cb8.Click
-        cbClick(cb8.Name)
-    End Sub
-    ''' <summary>specific click handler for the 9th definable command button</summary>
-    Private Shared Sub cb9_Click() Handles cb9.Click
-        cbClick(cb9.Name)
-    End Sub
-    ''' <summary>specific click handler for the 10th definable command button</summary>
-    Private Shared Sub cb0_Click() Handles cb0.Click
-        cbClick(cb0.Name)
+    ''' <summary>assign click handlers to command buttons in passed workbook Wb</summary>
+    ''' <param name="wb">Workbook where command buttons are located</param>
+    Public Sub InitializeCBHandlers(wb As Object)
+        Try
+            For Each ws As Worksheet In wb.Worksheets
+                For Each shp As Excel.Shape In ws.Shapes
+                    ' only for OLE Control buttons...
+                    If shp.Type = MsoShapeType.msoOLEControlObject Then
+                        ' Associate click-event handler of a CommandButton if its name matches the DB modifiers name.
+                        Dim ctrlName As String
+                        Try : ctrlName = ws.OLEObjects(shp.Name).Object.Name : Catch ex As Exception : ctrlName = "" : End Try
+                        If Left(ctrlName, 7) = "Script_" And Not colCommandButtons.Contains(wb.Name + ws.Name + ctrlName) Then
+                            Dim cbCH As New CommandbuttonClickHandler With {.cb = ws.OLEObjects(shp.Name).Object}
+                            colCommandButtons.Add(cbCH, wb.Name + ws.Name + ctrlName)
+                        End If
+                    End If
+                Next
+            Next
+        Catch ex As Exception
+            LogWarn("InitializeCBHandlers exception occurred: " + ex.Message)
+        End Try
     End Sub
 
-    ''' <summary>common click handler for all command buttons</summary>
-    ''' <param name="cbName">name of command button, defines whether a script is invoked (starts with Script_)</param>
-    Private Shared Sub cbClick(cbName As String)
+    ''' <summary>used for releasing com objects</summary>
+    Protected Overrides Sub Finalize()
+        LogInfo("Addin finalizing: Base finalize")
+        MyBase.Finalize()
+        LogInfo("Addin finalizing: releasing com objects of control buttons")
+        For Each cbCH As CommandbuttonClickHandler In colCommandButtons
+            Try : Marshal.ReleaseComObject(cbCH.cb) : Catch ex As Exception : End Try
+        Next
+        colCommandButtons.Clear()
+        Try : Marshal.ReleaseComObject(ScriptAddin.currWb) : Catch ex As Exception : End Try
+        Try : Marshal.ReleaseComObject(ScriptAddin.ScriptDefinitionRange) : Catch ex As Exception : End Try
+        For Each scdrange As Range In ScriptAddin.Scriptcalldefs
+            Try : Marshal.ReleaseComObject(scdrange) : Catch ex As Exception : End Try
+        Next
+    End Sub
+End Class
+
+''' <summary>Event handler class for click events on control buttons that are associated to script addin actions</summary>
+Class CommandbuttonClickHandler
+    ''' <summary>CommandButton that can be inserted on a worksheet (name property being the same as the respective target range)</summary>
+    Public WithEvents cb As Forms.CommandButton
+
+    '''' <summary>common click handler for all command buttons</summary>
+    Private Sub cb_Click() Handles cb.Click
         Dim errStr As String
+        ' name of command button, defines whether a Script definition is invoked (starts with Script_)
+        Dim cbName As String = cb.Name
         ' set ScriptDefinition to callers range
         Try
             ScriptAddin.ScriptDefinitionRange = ExcelDna.Integration.ExcelDnaUtil.Application.Range(cbName)
@@ -204,82 +192,4 @@ Public Class AddInEvents
         If errStr <> "" Then ScriptAddin.UserMsg(errStr, True, True)
     End Sub
 
-    ''' <summary>assign click handlers to command buttons in passed sheet Sh, maximum 10 buttons are supported</summary>
-    ''' <param name="Sh">sheet where command buttons are located</param>
-    Public Shared Function assignHandler(Sh As Object) As Boolean
-        cb1 = Nothing : cb2 = Nothing : cb3 = Nothing : cb4 = Nothing : cb5 = Nothing : cb6 = Nothing : cb7 = Nothing : cb8 = Nothing : cb9 = Nothing : cb0 = Nothing
-        assignHandler = True
-        Dim collShpNames As String = ""
-        Try
-            For Each shp As Excel.Shape In Sh.Shapes
-                ' only for OLE Control buttons...
-                If shp.Type = MsoShapeType.msoOLEControlObject Then
-                    ' Associate click-handler with all click events of the CommandButtons.
-                    Dim ctrlName As String
-                    Try : ctrlName = Sh.OLEObjects(shp.Name).Object.Name : Catch ex As Exception : ctrlName = "" : End Try
-                    If Left(ctrlName, 7) = "Script_" Then
-                        ' check if script range actually exists and has three columns
-                        Dim testRange As Excel.Range
-                        Try
-                            testRange = ExcelDna.Integration.ExcelDnaUtil.Application.Range(ctrlName)
-                        Catch ex As Exception
-                            Continue For
-                        End Try
-                        If Not IsNothing(testRange) AndAlso testRange.Columns.Count <> 3 Then Continue For
-                        collShpNames += IIf(collShpNames <> "", ",", "") + shp.Name
-                        If cb1 Is Nothing Then
-                            cb1 = Sh.OLEObjects(shp.Name).Object
-                        ElseIf cb2 Is Nothing Then
-                            cb2 = Sh.OLEObjects(shp.Name).Object
-                        ElseIf cb3 Is Nothing Then
-                            cb3 = Sh.OLEObjects(shp.Name).Object
-                        ElseIf cb4 Is Nothing Then
-                            cb4 = Sh.OLEObjects(shp.Name).Object
-                        ElseIf cb5 Is Nothing Then
-                            cb5 = Sh.OLEObjects(shp.Name).Object
-                        ElseIf cb6 Is Nothing Then
-                            cb6 = Sh.OLEObjects(shp.Name).Object
-                        ElseIf cb7 Is Nothing Then
-                            cb7 = Sh.OLEObjects(shp.Name).Object
-                        ElseIf cb8 Is Nothing Then
-                            cb8 = Sh.OLEObjects(shp.Name).Object
-                        ElseIf cb9 Is Nothing Then
-                            cb9 = Sh.OLEObjects(shp.Name).Object
-                        ElseIf cb0 Is Nothing Then
-                            cb0 = Sh.OLEObjects(shp.Name).Object
-                        Else
-                            UserMsg("Only max. of 10 Script-Addin Buttons are allowed on a Worksheet, currently in use: " + collShpNames + " !")
-                            assignHandler = False
-                            Exit For
-                        End If
-                    End If
-                End If
-            Next
-        Catch ex As Exception
-            LogWarn("assignHandler exception occurred: " + ex.Message)
-        End Try
-    End Function
-
-    ''' <summary>assign command buttons anew with each change of sheets</summary>
-    ''' <param name="Sh"></param>
-    Private Sub Application_SheetActivate(Sh As Object) Handles Application.SheetActivate
-        assignHandler(Sh)
-    End Sub
-
-    ''' <summary>used for releasing com objects</summary>
-    Protected Overrides Sub Finalize()
-        LogInfo("Addin finalizing: Base finalize")
-        MyBase.Finalize()
-        LogInfo("Addin finalizing: releasing com objects of control buttons")
-        If Not IsNothing(cb1) Then Marshal.ReleaseComObject(cb1)
-        If Not IsNothing(cb2) Then Marshal.ReleaseComObject(cb2)
-        If Not IsNothing(cb3) Then Marshal.ReleaseComObject(cb3)
-        If Not IsNothing(cb4) Then Marshal.ReleaseComObject(cb4)
-        If Not IsNothing(cb5) Then Marshal.ReleaseComObject(cb5)
-        If Not IsNothing(cb6) Then Marshal.ReleaseComObject(cb6)
-        If Not IsNothing(cb7) Then Marshal.ReleaseComObject(cb7)
-        If Not IsNothing(cb8) Then Marshal.ReleaseComObject(cb8)
-        If Not IsNothing(cb9) Then Marshal.ReleaseComObject(cb9)
-        If Not IsNothing(cb0) Then Marshal.ReleaseComObject(cb0)
-    End Sub
 End Class
