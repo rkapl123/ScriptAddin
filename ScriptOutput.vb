@@ -92,6 +92,7 @@ Public Class ScriptOutput
         Dim msgtext As String = e.Data
         Dim fgCol As String = "" : Dim bgCol As String = ""
         Dim fgColWin As System.Drawing.Color = System.Drawing.Color.White : Dim bgColWin As System.Drawing.Color = System.Drawing.Color.Black
+        ' special treatment of color terminal sequences, convert into foreground and background color
         If Strings.Left(e.Data, 1) = ChrW(27) Then
             fgCol = Strings.Mid(e.Data, 3, 2)
             If Strings.Mid(e.Data, 5, 1) = ";" Then
@@ -150,6 +151,7 @@ Public Class ScriptOutput
             ScriptOutputTextbox.Select(pos + theText.Length, 0)
             ScriptOutputTextbox.AppendText("")
         End If
+        ScriptOutputTextbox.ScrollToCaret()
     End Sub
 
     Private Sub ScriptOutput_KeyUp(sender As Object, e As KeyEventArgs) Handles Me.KeyUp

@@ -9,7 +9,7 @@ Imports System.Runtime.InteropServices
 ' Review the values of the assembly attributes
 
 <Assembly: AssemblyTitle("ScriptAddin")>
-<Assembly: AssemblyDescription("Excel-DNA based Add-in for handling Scripts from Excel (currently supported/tested: R, Python, Perl, Cscript and Win Cmdshell), storing input objects (scalars/vectors/matrices) and retrieving result objects (scalars/vectors/matrices) as text files. Graphics are retrieved from produced png files into Excel to be displayed as diagrams.")>
+<Assembly: AssemblyDescription("Excel-DNA based Add-in for handling Scripts from Excel (currently supported/tested: R, Python, Perl, VB/Jscript and Win Cmdshell), storing input objects (scalars/vectors/matrices) and retrieving result objects (scalars/vectors/matrices) as text files. Graphics are retrieved from produced png files into Excel to be displayed as diagrams.")>
 <Assembly: AssemblyCompany("https://rkapl123.github.io/ScriptAddin/")>
 <Assembly: AssemblyProduct("")>
 <Assembly: AssemblyCopyright("Copyright ©  2025, MIT License")>
@@ -30,5 +30,5 @@ Imports System.Runtime.InteropServices
 ' You can specify all the values or you can default the Build and Revision Numbers 
 ' by using the '*' as shown below:
 
-<Assembly: AssemblyVersion("1.0.0.11")>
-<Assembly: AssemblyFileVersion("1.0.0.11")>
+<Assembly: AssemblyVersion("1.0.0.12")>
+<Assembly: AssemblyFileVersion("1.0.0.12")>

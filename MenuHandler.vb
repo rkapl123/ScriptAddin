@@ -11,16 +11,13 @@ Imports System.Configuration
 <ComVisible(True)>
 Public Class MenuHandler
     Inherits ExcelRibbon
-    ''' <summary>the selected index of the script executable (R, Python,...)</summary>
-    Public selectedScriptExecutable As Integer
 
     ''' <summary></summary>
     Public Sub ribbonLoaded(myribbon As IRibbonUI)
         ScriptAddin.theRibbon = myribbon
         ScriptAddin.debugScript = CBool(ScriptAddin.fetchSetting("debugScript", "False"))
-        selectedScriptExecutable = CInt(ScriptAddin.fetchSetting("selectedScriptExecutable", "0"))
+        ScriptAddin.selectedScriptExecutable = CInt(ScriptAddin.fetchSetting("selectedScriptExecutable", "0"))
         ScriptAddin.WarningIssued = False
-        If ScriptAddin.ScriptExecutables.Count > 0 Then ScriptAddin.ScriptType = ScriptAddin.ScriptExecutables(selectedScriptExecutable)
     End Sub
 
     ''' <summary>creates the Ribbon</summary>
@@ -41,7 +38,7 @@ Public Class MenuHandler
                 "<toggleButton id='debug' getLabel='getDebugLabel' onAction='toggleButton' getImage='getImage' getPressed='getPressed' tag='3' screentip='toggles script output window visibility' supertip='for debugging you can display the script output' />" +
                 "<button id='showLog' label='Log' tag='4' screentip='shows Scriptaddins Diagnostic Display' getImage='getLogsImage' onAction='clickShowLog'/>" +
               "</buttonGroup>" +
-            "<dialogBoxLauncher><button id='dialog' label='About Scriptaddin' onAction='refreshScriptDefs' tag='5' screentip='Show Aboutbox (and refresh ScriptDefinitions from current Workbook from there)'/></dialogBoxLauncher></group>" +
+            "<dialogBoxLauncher><button id='dialog' label='About Scriptaddin' onAction='showAboutbox' tag='5' screentip='Show Aboutbox (and be able to refresh ScriptDefinitions from there)'/></dialogBoxLauncher></group>" +
             "<group id='ScriptsGroup' label='Run Scripts defined in WB/sheet names'>"
         Dim presetSheetButtonsCount As Integer = Int16.Parse(ScriptAddin.fetchSetting("presetSheetButtonsCount", "15"))
         Dim thesize As String = IIf(presetSheetButtonsCount < 15, "normal", "large")
@@ -166,7 +163,7 @@ Public Class MenuHandler
             UserMsg("Command button code-names cannot be longer than " + CStr(excelNamesLengthLimit) + " characters: '" + cbName + "', you need to rename the script definition range and create the command button again.", True, True)
             Exit Sub
         End If
-        ' fail to assign a handler? remove command-button.
+        ' failed to assign a handler? remove command-button.
         Try
             AddInEvents.colCommandButtons.Add(New CommandbuttonClickHandler With {.cb = cb})
         Catch ex As Exception
@@ -217,8 +214,9 @@ Public Class MenuHandler
             If Not IsNothing(ScriptAddin.theScriptOutput) Then
                 If pressed Then
                     ScriptAddin.theScriptOutput.Opacity = 1.0
-                    'ScriptAddin.theScriptOutput.BringToFront()
                     ScriptAddin.theScriptOutput.Refresh()
+                    ScriptAddin.theScriptOutput.ScrollControlIntoView(ScriptAddin.theScriptOutput.ScriptOutputTextbox)
+                    ScriptAddin.theScriptOutput.BringToFront()
                 Else
                     ScriptAddin.theScriptOutput.Opacity = 0.0
                 End If
@@ -229,8 +227,8 @@ Public Class MenuHandler
         turnOffDesignMode()
     End Sub
 
-    ''' <summary></summary>
-    Public Sub refreshScriptDefs(control As IRibbonControl)
+    ''' <summary>show the about box</summary>
+    Public Sub showAboutbox(control As IRibbonControl)
         Dim myAbout As New AboutBox1
         myAbout.ShowDialog()
         turnOffDesignMode()
@@ -302,13 +300,12 @@ Public Class MenuHandler
     ''' <summary>after selection of executable used to return the selected executable for display</summary>
     ''' <returns></returns>
     Public Function GetSelectedExec(control As IRibbonControl) As Integer
-        Return selectedScriptExecutable
+        Return ScriptAddin.selectedScriptExecutable
     End Function
 
     ''' <summary>select a script executable from the ScriptExecutable dropdown</summary>
     Public Sub selectItemExec(control As IRibbonControl, id As String, index As Integer)
-        selectedScriptExecutable = index
-        ScriptAddin.ScriptType = ScriptAddin.ScriptExecutables(selectedScriptExecutable)
+        ScriptAddin.selectedScriptExecutable = index
         ScriptAddin.setUserSetting("selectedScriptExecutable", index.ToString())
         turnOffDesignMode()
     End Sub

@@ -3,6 +3,7 @@ Imports System.Windows.Forms
 Imports System.IO
 Imports System.Diagnostics
 
+
 ''' <summary>Dialog used to display and edit the three parts of ScriptAddin settings (Addin level, user and central)</summary>
 Public Class EditSettings
     ''' <summary>the settings path for user or central setting (for re-saving after modification)</summary>

@@ -13,6 +13,8 @@ Imports System.Collections.Specialized
 Public Module ScriptAddin
     Public Const excelNamesLengthLimit = 31
 
+    ''' <summary>the selected index of the script executable (R, Python,...)</summary>
+    Public selectedScriptExecutable As Integer
     ''' <summary>script type for calling scripts (could be R, perl, etc)</summary>
     Public ScriptType As String
     ''' <summary>executable name for calling scripts</summary>
@@ -44,21 +46,21 @@ Public Module ScriptAddin
     Public currWb As Workbook
     ''' <summary>the current script definition range (three columns)</summary>
     Public ScriptDefinitionRange As Range
-    ''' <summary></summary>
+    ''' <summary>names (starting with Script_) for script invocation</summary>
     Public Scriptcalldefnames As String() = {}
-    ''' <summary></summary>
+    ''' <summary>named ranges of names (starting with Script_) for script invocation, corollary to Scriptcalldefnames</summary>
     Public Scriptcalldefs As Range() = {}
-    ''' <summary></summary>
+    ''' <summary>for building the ribbon drowdowns, keep a collection of all worksheets (their names) containing all script names pointing to their definition range</summary>
     Public ScriptDefsheetColl As Dictionary(Of String, Dictionary(Of String, Range))
-    ''' <summary></summary>
+    ''' <summary>for invoking the right definition, need a mapping from the ID of the dropdown item to the corresponding sheetname where the definition range is located, this sheetname is then to look up the definition in ScriptDefsheetColl</summary>
     Public ScriptDefsheetMap As Dictionary(Of String, String)
     ''' <summary>reference object for the Add-ins ribbon</summary>
     Public theRibbon As CustomUI.IRibbonUI
     ''' <summary>ribbon menu handler</summary>
     Public theMenuHandler As MenuHandler
-    ''' <summary></summary>
+    ''' <summary>global flag for avoiding further message boxes if chosen in UserMsg</summary>
     Public avoidFurtherMsgBoxes As Boolean
-    ''' <summary></summary>
+    ''' <summary>directory global to the script definition (taken if no overriding dir parameter is given for script/arg/res/diag...)</summary>
     Public dirglobal As String
     ''' <summary>show the script output for debugging purposes (invisible otherwise)</summary>
     Public debugScript As Boolean
@@ -78,6 +80,13 @@ Public Module ScriptAddin
     ''' <returns>Error message or null string in case of success</returns>
     Public Function startScriptprocess() As String
         Dim errStr As String
+        ' set script executable and error message if no executables available
+        If ScriptAddin.ScriptExecutables.Count > 0 Then
+            ScriptAddin.ScriptType = ScriptAddin.ScriptExecutables(ScriptAddin.selectedScriptExecutable)
+        Else
+            Return "no script executables defined, therefore start of script is not possible !"
+        End If
+
         avoidFurtherMsgBoxes = False
         ' get the definition range
         errStr = getScriptDefinitions()
@@ -160,7 +169,7 @@ Public Module ScriptAddin
         Return vbNullString
     End Function
 
-    ''' <summary>gets defined named ranges for script invocation in the current workbook</summary>
+    ''' <summary>gets defined names (starting with Script_) and their named ranges for script invocation in the current workbook</summary>
     ''' <returns>Error message or null string in case of success</returns>
     Public Function getScriptNames() As String
         Scriptcalldefnames = {}
@@ -270,7 +279,7 @@ Public Module ScriptAddin
                 ElseIf deftype = "type" Then
                     If ScriptExecutables.Contains(defval) Then
                         ScriptType = defval
-                        theMenuHandler.selectedScriptExecutable = ScriptExecutables.IndexOf(ScriptType)
+                        ScriptAddin.selectedScriptExecutable = ScriptExecutables.IndexOf(ScriptType)
                         ' not really important if not set at startup of addin (timing problem as ribbon is not loaded here)
                         Try : theRibbon.InvalidateControl("execDropDown") : Catch ex As Exception : End Try
                         StdErrMeansError = Not (deffilepath.ToLower() = "n" Or deffilepath.ToLower() = "no")
@@ -885,6 +894,18 @@ Public Module ScriptAddin
         Else
             fetchSetting = Nothing
         End If
+        ' rough type check based on default value
+        If defaultValue <> "" And fetchSetting <> "" Then
+            Dim checkDefaultInt As Integer = 0
+            Dim checkDefaultBool As Boolean = False
+            If Integer.TryParse(defaultValue, checkDefaultInt) AndAlso Not Integer.TryParse(fetchSetting, checkDefaultInt) Then
+                UserMsg("couldn't parse the setting " + Key + " as an Integer: " + fetchSetting + ", using default value: " + defaultValue)
+                fetchSetting = Nothing
+            ElseIf Boolean.TryParse(defaultValue, checkDefaultBool) AndAlso Not Boolean.TryParse(fetchSetting, checkDefaultBool) Then
+                UserMsg("couldn't parse the setting " + Key + " as a Boolean: " + fetchSetting + ", using default value: " + defaultValue)
+                fetchSetting = Nothing
+            End If
+        End If
         If fetchSetting Is Nothing Then fetchSetting = defaultValue
     End Function
 
@@ -1018,6 +1039,7 @@ Public Module ScriptAddin
         Try : ScriptAddin.DebugAddin = CBool(fetchSetting("DebugAddin", "False")) : Catch Ex As Exception : End Try
     End Sub
 
+    ''' <summary>inserts an example for a script definition starting from selected cell</summary>
     Public Sub insertScriptExample()
         If QuestionMsg("Inserting Example Script definition starting in current cell, overwriting 14 rows and 3 columns with example definitions!") = MsgBoxResult.Cancel Then Exit Sub
         Dim retval As String = InputBox("Please provide a range name:", "Range name for the example (empty name exits this)")

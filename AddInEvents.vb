@@ -73,8 +73,9 @@ Public Class AddInEvents
         ScriptAddin.removeResultsDiags() ' remove results specified by rres
     End Sub
 
-    ''' <summary>refresh ribbon is being treated in Workbook_Activate...</summary>
+    ''' <summary>refresh ribbon is being treated in Workbook_Activate, only for initialising CB Handlers</summary>
     Private Sub Workbook_Open(Wb As Workbook) Handles Application.WorkbookOpen
+        InitializeCBHandlers(Wb)
     End Sub
 
     ''' <summary>refresh ribbon with current workbook's ScriptAddin Names</summary>
@@ -86,7 +87,6 @@ Public Class AddInEvents
         ElseIf errStr <> vbNullString Then
             ScriptAddin.UserMsg("Error when getting definitions in Workbook_Activate: " + errStr, True, True)
         End If
-        InitializeCBHandlers(Wb)
         ScriptAddin.theRibbon.Invalidate()
     End Sub
 
@@ -129,7 +129,7 @@ Public Class AddInEvents
                 For Each shp As Excel.Shape In ws.Shapes
                     ' only for OLE Control buttons...
                     If shp.Type = MsoShapeType.msoOLEControlObject Then
-                        ' Associate click-event handler of a CommandButton if its name matches the DB modifiers name.
+                        ' Associate click-event handler of a CommandButton if its name matches the Script definition name.
                         Dim ctrlName As String
                         Try : ctrlName = ws.OLEObjects(shp.Name).Object.Name : Catch ex As Exception : ctrlName = "" : End Try
                         If Left(ctrlName, 7) = "Script_" And Not colCommandButtons.Contains(wb.Name + ws.Name + ctrlName) Then
@@ -146,18 +146,19 @@ Public Class AddInEvents
 
     ''' <summary>used for releasing com objects</summary>
     Protected Overrides Sub Finalize()
-        LogInfo("Addin finalizing: Base finalize")
         MyBase.Finalize()
-        LogInfo("Addin finalizing: releasing com objects of control buttons")
-        For Each cbCH As CommandbuttonClickHandler In colCommandButtons
-            Try : Marshal.ReleaseComObject(cbCH.cb) : Catch ex As Exception : End Try
-        Next
-        colCommandButtons.Clear()
+        If colCommandButtons IsNot Nothing Then
+            For Each cbCH As CommandbuttonClickHandler In colCommandButtons
+                Try : Marshal.ReleaseComObject(cbCH.cb) : Catch ex As Exception : End Try
+            Next
+        End If
         Try : Marshal.ReleaseComObject(ScriptAddin.currWb) : Catch ex As Exception : End Try
         Try : Marshal.ReleaseComObject(ScriptAddin.ScriptDefinitionRange) : Catch ex As Exception : End Try
-        For Each scdrange As Range In ScriptAddin.Scriptcalldefs
-            Try : Marshal.ReleaseComObject(scdrange) : Catch ex As Exception : End Try
-        Next
+        If Scriptcalldefs IsNot Nothing Then
+            For Each scdrange As Range In ScriptAddin.Scriptcalldefs
+                Try : Marshal.ReleaseComObject(scdrange) : Catch ex As Exception : End Try
+            Next
+        End If
     End Sub
 End Class
 
